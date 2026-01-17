@@ -292,10 +292,9 @@ export default function InitiativeDetailPage() {
               <div key={project.id} className="bg-white dark:bg-gray-800 rounded-lg shadow">
                 {/* Project Header */}
                 <div
-                  className="p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 flex justify-between items-center"
-                  onClick={() => toggleProject(project.id)}
+                  className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 flex justify-between items-center"
                 >
-                  <div className="flex items-center space-x-4 flex-1">
+                  <div className="flex items-center space-x-4 flex-1 cursor-pointer" onClick={() => toggleProject(project.id)}>
                     <svg
                       className={`w-5 h-5 text-gray-500 transform transition-transform ${
                         expandedProjects.has(project.id) ? 'rotate-90' : ''
@@ -316,6 +315,13 @@ export default function InitiativeDetailPage() {
                       {milestones[project.id]?.length || 0} milestones
                     </span>
                     <StatusBadge status={project.status} type="project" />
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View Details →
+                    </Link>
                   </div>
                 </div>
 

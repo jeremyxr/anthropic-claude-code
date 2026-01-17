@@ -207,6 +207,17 @@ export const api = {
     return toCamelCase(data) || [];
   },
 
+  getProject: async (id: string): Promise<Project> => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(data);
+  },
+
   createProject: async (data: Partial<Project>): Promise<Project> => {
     const snakeData = toSnakeCase(data);
     const { data: result, error } = await supabase
