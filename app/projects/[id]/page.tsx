@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api, Project, Milestone, Deliverable, TeamMember } from '@/lib/api';
+import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
 import { useUser } from '@/lib/user-context';
 
 export default function ProjectDetailPage() {
@@ -18,6 +20,7 @@ export default function ProjectDetailPage() {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>('');
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
   const [milestoneFormData, setMilestoneFormData] = useState({
     name: '',
@@ -52,13 +55,11 @@ export default function ProjectDetailPage() {
       const milestonesData = await api.getMilestones(id);
       setMilestones(milestonesData);
 
-      // Load team members
       if (currentTeam) {
         const members = await api.getTeamMembers(currentTeam.id);
         setTeamMembers(members);
       }
 
-      // Load deliverables for each milestone
       const deliverablesMap: Record<string, Deliverable[]> = {};
       for (const milestone of milestonesData) {
         const items = await api.getDeliverables(milestone.id);
@@ -69,6 +70,45 @@ export default function ProjectDetailPage() {
       console.error('Failed to load project:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateProjectField = async (field: string, value: any) => {
+    try {
+      await api.updateProject(id, {
+        [field]: value,
+        updatedBy: currentUser?.id
+      });
+      await loadData();
+    } catch (err) {
+      console.error(`Failed to update project ${field}:`, err);
+      throw err;
+    }
+  };
+
+  const updateMilestoneField = async (milestoneId: string, field: string, value: any) => {
+    try {
+      await api.updateMilestone(milestoneId, {
+        [field]: value,
+        updatedBy: currentUser?.id
+      });
+      await loadData();
+    } catch (err) {
+      console.error(`Failed to update milestone ${field}:`, err);
+      throw err;
+    }
+  };
+
+  const updateTaskField = async (taskId: string, field: string, value: any) => {
+    try {
+      await api.updateDeliverable(taskId, {
+        [field]: value,
+        updatedBy: currentUser?.id
+      });
+      await loadData();
+    } catch (err) {
+      console.error(`Failed to update task ${field}:`, err);
+      throw err;
     }
   };
 
@@ -133,37 +173,65 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'not-started':
-      case 'todo':
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
-      case 'completed':
-      case 'done':
-        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
-      case 'at-risk':
-      case 'blocked':
-        return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
-      default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  const handleDeleteMilestone = async (milestoneId: string) => {
+    if (!confirm('Are you sure you want to delete this milestone? This will also delete all tasks in it.')) {
+      return;
+    }
+    try {
+      await api.deleteMilestone(milestoneId);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to delete milestone:', err);
+      alert('Failed to delete milestone');
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'critical':
-        return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
-      case 'high':
-        return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'low':
-        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
-      default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) {
+      return;
     }
+    try {
+      await api.deleteDeliverable(taskId);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      alert('Failed to delete task');
+    }
+  };
+
+  const toggleTaskExpanded = (taskId: string) => {
+    const newExpanded = new Set(expandedTasks);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+    }
+    setExpandedTasks(newExpanded);
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      'not-started': 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
+      'todo': 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
+      'in-progress': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+      'in-review': 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+      'completed': 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+      'done': 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+      'blocked': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+      'at-risk': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+      'on-hold': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+    };
+    return colors[status] || colors['not-started'];
+  };
+
+  const getPriorityColor = (priority: string) => {
+    const colors: Record<string, string> = {
+      'critical': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+      'high': 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+      'medium': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+      'low': 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+    };
+    return colors[priority] || colors['medium'];
   };
 
   const getMilestoneProgress = (milestoneId: string) => {
@@ -186,10 +254,39 @@ export default function ProjectDetailPage() {
   };
 
   const getOwnerName = (userId: string | null) => {
-    if (!userId) return 'Unassigned';
+    if (!userId) return null;
     const member = teamMembers.find(m => m.userId === userId);
-    return member?.user?.name || member?.user?.email || 'Unknown';
+    return member?.user?.name || member?.user?.email || userId;
   };
+
+  const projectStatusOptions = [
+    { value: 'not-started', label: 'Not Started' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'on-hold', label: 'On Hold' },
+  ];
+
+  const milestoneStatusOptions = [
+    { value: 'not-started', label: 'Not Started' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'at-risk', label: 'At Risk' },
+  ];
+
+  const taskStatusOptions = [
+    { value: 'todo', label: 'To Do' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'in-review', label: 'In Review' },
+    { value: 'done', label: 'Done' },
+    { value: 'blocked', label: 'Blocked' },
+  ];
+
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'critical', label: 'Critical' },
+  ];
 
   if (loading || !project) {
     return (
@@ -203,66 +300,106 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-gray-950">
-      {/* Header with breadcrumb */}
-      <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-3">
-        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-          <a href="/initiatives" className="hover:text-gray-900 dark:hover:text-gray-100">Initiatives</a>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-white font-medium">{project.name}</span>
+      {/* Header */}
+      <div className="border-b border-gray-200 dark:border-gray-800">
+        <div className="px-8 py-3">
+          {/* Breadcrumb */}
+          <Link href="/initiatives" className="inline-flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-3">
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Initiatives
+          </Link>
+
+          {/* Project Title and Properties */}
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0 mr-4">
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                <InlineEdit
+                  value={project.name}
+                  onSave={(value) => updateProjectField('name', value)}
+                  className="text-2xl font-semibold"
+                  displayClassName="text-2xl font-semibold"
+                />
+              </h1>
+              {(project.description || true) && (
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  <InlineEdit
+                    value={project.description || ''}
+                    onSave={(value) => updateProjectField('description', value)}
+                    multiline
+                    placeholder="Add a description"
+                    className="text-sm"
+                    displayClassName="text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Inline Properties */}
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(project.status)}`}>
+                  <InlineSelect
+                    value={project.status}
+                    options={projectStatusOptions}
+                    onSave={(value) => updateProjectField('status', value)}
+                    displayClassName="font-medium"
+                  />
+                </span>
+                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  👤 {getOwnerName(project.lead) || <InlineEdit
+                    value=""
+                    onSave={(value) => updateProjectField('lead', value || null)}
+                    placeholder="No lead"
+                    displayClassName="inline text-gray-400 italic"
+                  />}
+                </span>
+                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  🎯 <InlineDate
+                    value={project.targetDeliveryDate}
+                    onSave={(value) => updateProjectField('targetDeliveryDate', value)}
+                    placeholder="No target date"
+                    displayClassName="inline"
+                  />
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden flex">
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-6 py-8">
-            {/* Project Title */}
-            <div className="mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
-                {project.name}
-              </h1>
-
-              {/* Inline Properties */}
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(project.status)}`}>
-                  {project.status.replace('-', ' ')}
-                </span>
-                {project.lead && (
-                  <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    👤 {getOwnerName(project.lead)}
-                  </span>
-                )}
-                {project.targetDeliveryDate && (
-                  <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    🎯 {new Date(project.targetDeliveryDate).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="mb-8">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Description</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
-                {project.description || 'No description provided'}
-              </p>
-            </div>
-
+          <div className="max-w-4xl mx-auto px-8 py-6">
             {/* Milestones */}
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white">Milestones</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Milestones ({milestones.length})</h3>
                 <button
                   onClick={() => setShowMilestoneModal(true)}
-                  className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  className="flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
                 >
-                  + Add milestone
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>New Milestone</span>
                 </button>
               </div>
 
               <div className="space-y-3">
                 {milestones.length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No milestones yet</p>
+                  <div className="text-center py-12 border border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">No milestones yet</p>
+                    <button
+                      onClick={() => setShowMilestoneModal(true)}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>Create Milestone</span>
+                    </button>
+                  </div>
                 ) : (
                   milestones.map((milestone) => {
                     const progress = getMilestoneProgress(milestone.id);
@@ -271,26 +408,64 @@ export default function ProjectDetailPage() {
                     return (
                       <div key={milestone.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0 mr-4">
                             <div className="flex items-center space-x-2 mb-1">
-                              <h4 className="font-medium text-gray-900 dark:text-white">{milestone.name}</h4>
+                              <h4 className="font-medium text-gray-900 dark:text-white">
+                                <InlineEdit
+                                  value={milestone.name}
+                                  onSave={(value) => updateMilestoneField(milestone.id, 'name', value)}
+                                  displayClassName="font-medium"
+                                />
+                              </h4>
                               <span className="text-xs text-gray-500 dark:text-gray-400">
                                 {progress.completed}/{progress.total} · {progress.percentage}%
                               </span>
                             </div>
-                            {milestone.description && (
-                              <p className="text-xs text-gray-600 dark:text-gray-400">{milestone.description}</p>
-                            )}
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                              <InlineEdit
+                                value={milestone.description || ''}
+                                onSave={(value) => updateMilestoneField(milestone.id, 'description', value)}
+                                multiline
+                                placeholder="Add a description"
+                                displayClassName="text-xs"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(milestone.status)}`}>
+                                <InlineSelect
+                                  value={milestone.status}
+                                  options={milestoneStatusOptions}
+                                  onSave={(value) => updateMilestoneField(milestone.id, 'status', value)}
+                                  displayClassName="font-medium"
+                                />
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                📅 <InlineDate
+                                  value={milestone.dueDate}
+                                  onSave={(value) => updateMilestoneField(milestone.id, 'dueDate', value)}
+                                  placeholder="No due date"
+                                  displayClassName="inline"
+                                />
+                              </span>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => {
-                              setSelectedMilestoneId(milestone.id);
-                              setShowTaskModal(true);
-                            }}
-                            className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                          >
-                            + Add task
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                setSelectedMilestoneId(milestone.id);
+                                setShowTaskModal(true);
+                              }}
+                              className="px-2.5 py-1 border border-gray-200 dark:border-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            >
+                              + Add task
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMilestone(milestone.id)}
+                              className="px-2.5 py-1 border border-red-200 dark:border-red-800 rounded text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
 
                         {/* Progress bar */}
@@ -304,27 +479,138 @@ export default function ProjectDetailPage() {
                         {/* Tasks */}
                         {tasks.length > 0 && (
                           <div className="space-y-2 mt-3">
-                            {tasks.map((task) => (
-                              <div key={task.id} className="flex items-center space-x-2 text-sm pl-2">
-                                <input
-                                  type="checkbox"
-                                  checked={task.status === 'done'}
-                                  className="w-4 h-4 rounded border-gray-300"
-                                  readOnly
-                                />
-                                <span className={task.status === 'done' ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}>
-                                  {task.name}
-                                </span>
-                                {task.priority && task.priority !== 'medium' && (
-                                  <span className={`px-1.5 py-0.5 rounded text-xs ${getPriorityColor(task.priority)}`}>
-                                    {task.priority}
-                                  </span>
-                                )}
-                                {task.assignee && (
-                                  <span className="text-xs text-gray-500">· {getOwnerName(task.assignee)}</span>
-                                )}
-                              </div>
-                            ))}
+                            {tasks.map((task) => {
+                              const isExpanded = expandedTasks.has(task.id);
+                              return (
+                                <div key={task.id} className="border border-gray-100 dark:border-gray-800 rounded p-2">
+                                  <div className="flex items-start space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={task.status === 'done'}
+                                      onChange={() => updateTaskField(task.id, 'status', task.status === 'done' ? 'todo' : 'done')}
+                                      className="w-4 h-4 rounded border-gray-300 mt-0.5 cursor-pointer"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div
+                                        className="cursor-pointer"
+                                        onClick={() => toggleTaskExpanded(task.id)}
+                                      >
+                                        <span className={`text-sm ${task.status === 'done' ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                                          <InlineEdit
+                                            value={task.name}
+                                            onSave={(value) => updateTaskField(task.id, 'name', value)}
+                                            displayClassName="text-sm"
+                                          />
+                                        </span>
+                                      </div>
+
+                                      {isExpanded && (
+                                        <div className="mt-3 space-y-2 pl-2 border-l-2 border-gray-200 dark:border-gray-700">
+                                          <div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Description</div>
+                                            <InlineEdit
+                                              value={task.description || ''}
+                                              onSave={(value) => updateTaskField(task.id, 'description', value)}
+                                              multiline
+                                              placeholder="Add a description"
+                                              displayClassName="text-xs"
+                                            />
+                                          </div>
+
+                                          <div className="flex flex-wrap gap-2">
+                                            <div>
+                                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Status:</span>
+                                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(task.status)}`}>
+                                                <InlineSelect
+                                                  value={task.status}
+                                                  options={taskStatusOptions}
+                                                  onSave={(value) => updateTaskField(task.id, 'status', value)}
+                                                  displayClassName="font-medium"
+                                                />
+                                              </span>
+                                            </div>
+
+                                            <div>
+                                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Priority:</span>
+                                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                                                <InlineSelect
+                                                  value={task.priority}
+                                                  options={priorityOptions}
+                                                  onSave={(value) => updateTaskField(task.id, 'priority', value)}
+                                                  displayClassName="font-medium"
+                                                />
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Assignee:</span>
+                                            <span className="text-xs">
+                                              {getOwnerName(task.assignee) || <InlineEdit
+                                                value=""
+                                                onSave={(value) => updateTaskField(task.id, 'assignee', value || null)}
+                                                placeholder="No assignee"
+                                                displayClassName="inline text-gray-400 italic text-xs"
+                                              />}
+                                            </span>
+                                          </div>
+
+                                          <div>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Due date:</span>
+                                            <span className="text-xs">
+                                              <InlineDate
+                                                value={task.dueDate}
+                                                onSave={(value) => updateTaskField(task.id, 'dueDate', value)}
+                                                placeholder="No due date"
+                                                displayClassName="inline text-xs"
+                                              />
+                                            </span>
+                                          </div>
+
+                                          {task.tags && task.tags.length > 0 && (
+                                            <div>
+                                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Tags:</span>
+                                              <div className="flex flex-wrap gap-1 mt-1">
+                                                {task.tags.map((tag, idx) => (
+                                                  <span key={idx} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
+                                                    {tag}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          <button
+                                            onClick={() => handleDeleteTask(task.id)}
+                                            className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                                          >
+                                            Delete task
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-1 flex-shrink-0">
+                                      {!isExpanded && task.priority && task.priority !== 'medium' && (
+                                        <span className={`px-1.5 py-0.5 rounded text-xs ${getPriorityColor(task.priority)}`}>
+                                          {task.priority}
+                                        </span>
+                                      )}
+                                      {!isExpanded && task.assignee && (
+                                        <span className="text-xs text-gray-500">· {getOwnerName(task.assignee)}</span>
+                                      )}
+                                      <button
+                                        onClick={() => toggleTaskExpanded(task.id)}
+                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                      >
+                                        <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -347,23 +633,36 @@ export default function ProjectDetailPage() {
               <div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</div>
                 <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(project.status)}`}>
-                  {project.status.replace('-', ' ')}
+                  <InlineSelect
+                    value={project.status}
+                    options={projectStatusOptions}
+                    onSave={(value) => updateProjectField('status', value)}
+                    displayClassName="font-medium"
+                  />
                 </span>
               </div>
-              {project.lead && (
-                <div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Lead</div>
-                  <div className="text-sm text-gray-900 dark:text-white">{getOwnerName(project.lead)}</div>
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Lead</div>
+                <div className="text-sm text-gray-900 dark:text-white">
+                  {getOwnerName(project.lead) || <InlineEdit
+                    value=""
+                    onSave={(value) => updateProjectField('lead', value || null)}
+                    placeholder="No lead"
+                    displayClassName="text-sm text-gray-400 italic"
+                  />}
                 </div>
-              )}
-              {project.targetDeliveryDate && (
-                <div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Target Date</div>
-                  <div className="text-sm text-gray-900 dark:text-white">
-                    {new Date(project.targetDeliveryDate).toLocaleDateString()}
-                  </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Target Date</div>
+                <div className="text-sm text-gray-900 dark:text-white">
+                  <InlineDate
+                    value={project.targetDeliveryDate}
+                    onSave={(value) => updateProjectField('targetDeliveryDate', value)}
+                    placeholder="No target date"
+                    displayClassName="text-sm"
+                  />
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -377,7 +676,7 @@ export default function ProjectDetailPage() {
                 const progress = getMilestoneProgress(milestone.id);
                 return (
                   <div key={milestone.id} className="flex justify-between items-center">
-                    <span className="text-sm text-gray-900 dark:text-white">{milestone.name}</span>
+                    <span className="text-sm text-gray-900 dark:text-white truncate">{milestone.name}</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {progress.percentage}% of {progress.total}
                     </span>
@@ -410,51 +709,63 @@ export default function ProjectDetailPage() {
 
       {/* Create Milestone Modal */}
       {showMilestoneModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Create Milestone</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-lg w-full p-6 border border-gray-200 dark:border-gray-800">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Create Milestone</h2>
+              <button
+                onClick={() => setShowMilestoneModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <form onSubmit={handleCreateMilestone}>
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Name *</label>
                   <input
                     type="text"
                     required
                     value={milestoneFormData.name}
                     onChange={(e) => setMilestoneFormData({ ...milestoneFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                    placeholder="Enter milestone name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Description</label>
                   <textarea
                     value={milestoneFormData.description}
                     onChange={(e) => setMilestoneFormData({ ...milestoneFormData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                    placeholder="Describe the milestone"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Due Date</label>
                   <input
                     type="date"
                     value={milestoneFormData.dueDate}
                     onChange={(e) => setMilestoneFormData({ ...milestoneFormData, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                   />
                 </div>
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-2 mt-5 pt-4 border-t border-gray-200 dark:border-gray-800">
                 <button
                   type="button"
                   onClick={() => setShowMilestoneModal(false)}
-                  className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                  className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
                 >
                   Create
                 </button>
@@ -466,37 +777,49 @@ export default function ProjectDetailPage() {
 
       {/* Create Task Modal */}
       {showTaskModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Create Task</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-lg w-full p-6 border border-gray-200 dark:border-gray-800">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Create Task</h2>
+              <button
+                onClick={() => setShowTaskModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <form onSubmit={handleCreateTask}>
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Name *</label>
                   <input
                     type="text"
                     required
                     value={taskFormData.name}
                     onChange={(e) => setTaskFormData({ ...taskFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                    placeholder="Enter task name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Description</label>
                   <textarea
                     value={taskFormData.description}
                     onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                    placeholder="Describe the task"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Priority</label>
                     <select
                       value={taskFormData.priority}
                       onChange={(e) => setTaskFormData({ ...taskFormData, priority: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                      className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                     >
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
@@ -505,11 +828,11 @@ export default function ProjectDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assignee</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Assignee</label>
                     <select
                       value={taskFormData.assignee}
                       onChange={(e) => setTaskFormData({ ...taskFormData, assignee: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                      className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                     >
                       <option value="">No assignee</option>
                       {teamMembers.map((member) => (
@@ -520,39 +843,39 @@ export default function ProjectDetailPage() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Due Date</label>
                     <input
                       type="date"
                       value={taskFormData.dueDate}
                       onChange={(e) => setTaskFormData({ ...taskFormData, dueDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                      className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Tags</label>
                     <input
                       type="text"
                       value={taskFormData.tags}
                       onChange={(e) => setTaskFormData({ ...taskFormData, tags: e.target.value })}
                       placeholder="tag1, tag2"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
+                      className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                     />
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-2 mt-5 pt-4 border-t border-gray-200 dark:border-gray-800">
                 <button
                   type="button"
                   onClick={() => setShowTaskModal(false)}
-                  className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                  className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
                 >
                   Create
                 </button>
