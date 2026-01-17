@@ -99,24 +99,6 @@ export default function InitiativeDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <nav className="bg-white dark:bg-gray-800 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-gray-900 dark:text-white">
-              Product Dev Hub
-            </Link>
-            <div className="flex space-x-4">
-              <Link href="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-blue-600">
-                Dashboard
-              </Link>
-              <Link href="/initiatives" className="text-gray-600 dark:text-gray-300 hover:text-blue-600">
-                Initiatives
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
       <div className="container mx-auto px-4 py-8">
         <Link href="/initiatives" className="text-blue-600 hover:underline flex items-center mb-6">
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

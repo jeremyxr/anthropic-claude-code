@@ -66,7 +66,8 @@ const toSnakeCase = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
 
   return Object.keys(obj).reduce((acc: any, key: string) => {
-    const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+    // Convert camelCase to snake_case properly (targetDate -> target_date)
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     acc[snakeKey] = toSnakeCase(obj[key]);
     return acc;
   }, {});
