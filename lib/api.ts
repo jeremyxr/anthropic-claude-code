@@ -7,6 +7,9 @@ export interface Initiative {
   status: 'planning' | 'active' | 'on-hold' | 'completed' | 'cancelled';
   targetDate: string | null;
   owner: string | null;
+  teamId?: string;
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +21,8 @@ export interface Project {
   initiativeId: string;
   status: 'not-started' | 'in-progress' | 'completed' | 'on-hold';
   lead: string | null;
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +34,8 @@ export interface Milestone {
   projectId: string;
   status: 'not-started' | 'in-progress' | 'completed' | 'at-risk';
   dueDate: string | null;
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +52,8 @@ export interface Deliverable {
   jiraIssueId: string | null;
   tags: string[];
   customFields: Record<string, any>;
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, Initiative } from '@/lib/api';
 import StatusBadge from '@/components/StatusBadge';
+import { useUser } from '@/lib/user-context';
 
 export default function InitiativesPage() {
+  const { currentUser, currentTeam } = useUser();
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -35,8 +37,19 @@ export default function InitiativesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!currentUser || !currentTeam) {
+      alert('Please complete your profile and team setup first');
+      return;
+    }
+
     try {
-      await api.createInitiative(formData);
+      await api.createInitiative({
+        ...formData,
+        targetDate: formData.targetDate || null, // Convert empty string to null
+        teamId: currentTeam.id,
+        createdBy: currentUser.id,
+      });
       setShowCreateModal(false);
       setFormData({
         name: '',
