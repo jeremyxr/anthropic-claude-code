@@ -237,6 +237,27 @@ export default function SettingsPage() {
                 });
                 console.log('User created successfully:', user);
                 setCurrentUser(user);
+
+                // Auto-create a default team for the user
+                console.log('Creating default team for user');
+                const defaultTeam = await api.createTeam({
+                  name: `${user.name}'s Team`,
+                  description: 'My personal workspace',
+                  createdBy: user.id,
+                });
+                console.log('Team created successfully:', defaultTeam);
+
+                // Add user as team owner
+                await api.addTeamMember({
+                  teamId: defaultTeam.id,
+                  userId: user.id,
+                  role: 'owner',
+                });
+                console.log('User added as team owner');
+
+                // Set the team as current team
+                setCurrentTeam(defaultTeam);
+                await refreshUserTeams();
               } catch (error: any) {
                 console.error('Failed to create user:', error);
                 const errorMessage = error?.message || error?.error_description || JSON.stringify(error);
@@ -287,57 +308,6 @@ export default function SettingsPage() {
     );
   }
 
-  // Show team creation if no team
-  if (!currentTeam) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md w-full">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-            Create Your Team
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Teams help you organize and collaborate with others
-          </p>
-          <form onSubmit={handleCreateTeam}>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Team Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newTeamName}
-                  onChange={(e) => setNewTeamName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
-                  placeholder="My Team"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  value={newTeamDescription}
-                  onChange={(e) => setNewTeamDescription(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
-                  placeholder="What's this team for?"
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full mt-6 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-md text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50"
-            >
-              {isLoading ? 'Creating...' : 'Create Team'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-gray-950">
