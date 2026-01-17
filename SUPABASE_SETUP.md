@@ -31,7 +31,7 @@ cp .env.example .env.local
 
 ```env
 # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://zafrtqzykbujwcdeiecf.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://qswyrmuycuuymovebmzep.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-actual-anon-key-here
 
 # JIRA Configuration (optional)
