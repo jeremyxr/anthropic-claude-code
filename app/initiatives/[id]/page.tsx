@@ -485,7 +485,7 @@ export default function InitiativeDetailPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Status
@@ -504,14 +504,31 @@ export default function InitiativeDetailPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Lead
+                        Assigned Owner
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={projectFormData.lead}
                         onChange={(e) => setProjectFormData({ ...projectFormData, lead: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                        placeholder="Project lead"
+                      >
+                        <option value="">No owner</option>
+                        {teamMembers.map((member) => (
+                          <option key={member.userId} value={member.userId}>
+                            {member.user?.name || member.user?.email || 'Unknown'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Target Delivery Date
+                      </label>
+                      <input
+                        type="date"
+                        value={projectFormData.targetDeliveryDate}
+                        onChange={(e) => setProjectFormData({ ...projectFormData, targetDeliveryDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                       />
                     </div>
                   </div>
@@ -678,7 +695,7 @@ export default function InitiativeDetailPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Status
@@ -698,6 +715,22 @@ export default function InitiativeDetailPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Priority
+                      </label>
+                      <select
+                        value={deliverableFormData.priority}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, priority: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Type
                       </label>
                       <input
@@ -705,7 +738,7 @@ export default function InitiativeDetailPage() {
                         value={deliverableFormData.type}
                         onChange={(e) => setDeliverableFormData({ ...deliverableFormData, type: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                        placeholder="e.g., Feature, Bug, Design"
+                        placeholder="e.g., Feature, Bug"
                       />
                     </div>
                   </div>
@@ -713,15 +746,48 @@ export default function InitiativeDetailPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Assignee
+                        Assigned Owner
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={deliverableFormData.assignee}
                         onChange={(e) => setDeliverableFormData({ ...deliverableFormData, assignee: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                        placeholder="Assigned to"
+                      >
+                        <option value="">No assignee</option>
+                        {teamMembers.map((member) => (
+                          <option key={member.userId} value={member.userId}>
+                            {member.user?.name || member.user?.email || 'Unknown'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Due Date
+                      </label>
+                      <input
+                        type="date"
+                        value={deliverableFormData.dueDate}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, dueDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Tags
+                      </label>
+                      <input
+                        type="text"
+                        value={deliverableFormData.tags}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, tags: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                        placeholder="tag1, tag2, tag3"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Comma-separated tags</p>
                     </div>
 
                     <div>
