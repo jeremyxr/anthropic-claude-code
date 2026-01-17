@@ -31,7 +31,7 @@ export default function InitiativeDetailPage() {
   const [editFormData, setEditFormData] = useState({
     name: '',
     description: '',
-    status: 'planning' as const,
+    status: 'planning' as Initiative['status'],
     owner: '',
     targetDate: '',
   });
