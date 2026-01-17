@@ -49,6 +49,33 @@ export interface Deliverable {
   updatedAt: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamMember {
+  id: string;
+  teamId: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'member';
+  createdAt: string;
+  user?: User;
+}
+
 // Helper functions to convert between snake_case (DB) and camelCase (Frontend)
 const toCamelCase = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -269,6 +296,179 @@ export const api = {
 
     if (error) throw error;
     return toCamelCase(result);
+  },
+
+  // Users
+  getUsers: async (): Promise<User[]> => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  getUser: async (id: string): Promise<User> => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(data);
+  },
+
+  getUserByEmail: async (email: string): Promise<User | null> => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
+    return data ? toCamelCase(data) : null;
+  },
+
+  createUser: async (data: Partial<User>): Promise<User> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('users')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateUser: async (id: string, data: Partial<User>): Promise<User> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('users')
+      .update(snakeData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  // Teams
+  getTeams: async (): Promise<Team[]> => {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  getTeam: async (id: string): Promise<Team> => {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(data);
+  },
+
+  createTeam: async (data: Partial<Team>): Promise<Team> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('teams')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateTeam: async (id: string, data: Partial<Team>): Promise<Team> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('teams')
+      .update(snakeData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  deleteTeam: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('teams')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Team Members
+  getTeamMembers: async (teamId: string): Promise<TeamMember[]> => {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  addTeamMember: async (data: Partial<TeamMember>): Promise<TeamMember> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_members')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateTeamMember: async (id: string, data: Partial<TeamMember>): Promise<TeamMember> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_members')
+      .update(snakeData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  removeTeamMember: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  getUserTeams: async (userId: string): Promise<Team[]> => {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('team:teams(*)')
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return toCamelCase(data?.map((item: any) => item.team) || []);
   },
 
   // JIRA integration (kept for future implementation)
