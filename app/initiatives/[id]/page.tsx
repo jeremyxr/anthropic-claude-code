@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, Initiative, Project, TeamMember } from '@/lib/api';
-import StatusBadge from '@/components/StatusBadge';
+import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
 import { useUser } from '@/lib/user-context';
 
 export default function InitiativeDetailPage() {
@@ -18,7 +18,6 @@ export default function InitiativeDetailPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
 
   const [projectFormData, setProjectFormData] = useState({
     name: '',
@@ -26,14 +25,6 @@ export default function InitiativeDetailPage() {
     status: 'not-started' as const,
     lead: '',
     targetDeliveryDate: '',
-  });
-
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    description: '',
-    status: 'planning' as const,
-    owner: '',
-    targetDate: '',
   });
 
   useEffect(() => {
@@ -62,6 +53,32 @@ export default function InitiativeDetailPage() {
     }
   };
 
+  const updateInitiativeField = async (field: string, value: any) => {
+    try {
+      await api.updateInitiative(id, {
+        [field]: value,
+        updatedBy: currentUser?.id
+      });
+      await loadData();
+    } catch (err) {
+      console.error(`Failed to update ${field}:`, err);
+      throw err;
+    }
+  };
+
+  const updateProjectField = async (projectId: string, field: string, value: any) => {
+    try {
+      await api.updateProject(projectId, {
+        [field]: value,
+        updatedBy: currentUser?.id
+      });
+      await loadData();
+    } catch (err) {
+      console.error(`Failed to update project ${field}:`, err);
+      throw err;
+    }
+  };
+
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -86,22 +103,6 @@ export default function InitiativeDetailPage() {
     }
   };
 
-  const handleEditInitiative = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await api.updateInitiative(id, {
-        ...editFormData,
-        targetDate: editFormData.targetDate || null,
-        updatedBy: currentUser?.id
-      });
-      setShowEditModal(false);
-      loadData();
-    } catch (err) {
-      console.error('Failed to update initiative:', err);
-      alert('Failed to update initiative');
-    }
-  };
-
   const handleDeleteInitiative = async () => {
     if (!confirm('Are you sure you want to delete this initiative? This action cannot be undone.')) {
       return;
@@ -115,16 +116,16 @@ export default function InitiativeDetailPage() {
     }
   };
 
-  const openEditModal = () => {
-    if (initiative) {
-      setEditFormData({
-        name: initiative.name,
-        description: initiative.description,
-        status: initiative.status,
-        owner: initiative.owner || '',
-        targetDate: initiative.targetDate ? initiative.targetDate.split('T')[0] : '',
-      });
-      setShowEditModal(true);
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      return;
+    }
+    try {
+      await api.deleteProject(projectId);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+      alert('Failed to delete project');
     }
   };
 
@@ -146,6 +147,21 @@ export default function InitiativeDetailPage() {
     };
     return colors[status] || colors['planning'];
   };
+
+  const statusOptions = [
+    { value: 'planning', label: 'Planning' },
+    { value: 'active', label: 'Active' },
+    { value: 'on-hold', label: 'On Hold' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ];
+
+  const projectStatusOptions = [
+    { value: 'not-started', label: 'Not Started' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'on-hold', label: 'On Hold' },
+  ];
 
   if (loading) {
     return (
@@ -183,42 +199,56 @@ export default function InitiativeDetailPage() {
 
           {/* Initiative Title and Properties */}
           <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">{initiative.name}</h1>
-              {initiative.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{initiative.description}</p>
-              )}
+            <div className="flex-1 min-w-0 mr-4">
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                <InlineEdit
+                  value={initiative.name}
+                  onSave={(value) => updateInitiativeField('name', value)}
+                  className="text-2xl font-semibold"
+                  displayClassName="text-2xl font-semibold"
+                />
+              </h1>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                <InlineEdit
+                  value={initiative.description}
+                  onSave={(value) => updateInitiativeField('description', value)}
+                  multiline
+                  placeholder="Add a description"
+                  className="text-sm"
+                  displayClassName="text-sm"
+                />
+              </div>
 
               {/* Inline Properties */}
               <div className="flex flex-wrap gap-2 items-center">
                 <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(initiative.status)}`}>
-                  {initiative.status.replace('-', ' ')}
+                  <InlineSelect
+                    value={initiative.status}
+                    options={statusOptions}
+                    onSave={(value) => updateInitiativeField('status', value)}
+                    displayClassName="font-medium"
+                  />
                 </span>
-                {initiative.owner && (
-                  <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    👤 {initiative.owner}
-                  </span>
-                )}
-                {initiative.targetDate && (
-                  <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    📅 {new Date(initiative.targetDate).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
-                )}
+                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  👤 <InlineEdit
+                    value={initiative.owner || ''}
+                    onSave={(value) => updateInitiativeField('owner', value || null)}
+                    placeholder="No owner"
+                    displayClassName="inline"
+                  />
+                </span>
+                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  📅 <InlineDate
+                    value={initiative.targetDate}
+                    onSave={(value) => updateInitiativeField('targetDate', value)}
+                    displayClassName="inline"
+                  />
+                </span>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center space-x-2 ml-4">
-              <button
-                onClick={openEditModal}
-                className="px-2.5 py-1 border border-gray-200 dark:border-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Edit
-              </button>
+            <div className="flex items-center space-x-2">
               <button
                 onClick={handleDeleteInitiative}
                 className="px-2.5 py-1 border border-red-200 dark:border-red-800 rounded text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -267,45 +297,83 @@ export default function InitiativeDetailPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-px border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+            <div className="space-y-2">
               {projects.map((project) => (
-                <Link
+                <div
                   key={project.id}
-                  href={`/projects/${project.id}`}
-                  className="flex items-center py-3 px-4 hover:bg-gray-50 dark:hover:bg-gray-900/50 border-b border-gray-100 dark:border-gray-800/50 last:border-0 group"
+                  className="border border-gray-200 dark:border-gray-800 rounded-lg hover:border-gray-300 dark:hover:border-gray-700 transition-colors"
                 >
-                  <div className="flex-1 min-w-0 mr-4">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {project.name}
-                    </h3>
-                    {project.description && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                        {project.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {project.lead && (
-                      <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                        {getOwnerName(project.lead)}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0 mr-4">
+                        <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                          <InlineEdit
+                            value={project.name}
+                            onSave={(value) => updateProjectField(project.id, 'name', value)}
+                            displayClassName="text-sm font-medium"
+                          />
+                        </h3>
+                        {(project.description || true) && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <InlineEdit
+                              value={project.description || ''}
+                              onSave={(value) => updateProjectField(project.id, 'description', value)}
+                              multiline
+                              placeholder="Add a description"
+                              displayClassName="text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="px-2.5 py-1 border border-gray-200 dark:border-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          View Details
+                        </Link>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProject(project.id);
+                          }}
+                          className="px-2.5 py-1 border border-red-200 dark:border-red-800 rounded text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 items-center mt-3">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(project.status)}`}>
+                        <InlineSelect
+                          value={project.status}
+                          options={projectStatusOptions}
+                          onSave={(value) => updateProjectField(project.id, 'status', value)}
+                          displayClassName="font-medium"
+                        />
                       </span>
-                    )}
-                    {project.targetDeliveryDate && (
+                      {(project.lead || true) && (
+                        <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                          👤 {getOwnerName(project.lead) || <InlineEdit
+                            value=""
+                            onSave={(value) => updateProjectField(project.id, 'lead', value || null)}
+                            placeholder="No lead"
+                            displayClassName="inline text-gray-400 italic"
+                          />}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(project.targetDeliveryDate).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                        📅 <InlineDate
+                          value={project.targetDeliveryDate}
+                          onSave={(value) => updateProjectField(project.id, 'targetDeliveryDate', value)}
+                          placeholder="No target date"
+                          displayClassName="inline"
+                        />
                       </span>
-                    )}
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(project.status)}`}>
-                      {project.status.replace('-', ' ')}
-                    </span>
-                    <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}
@@ -419,116 +487,6 @@ export default function InitiativeDetailPage() {
                   className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
                 >
                   Create
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Initiative Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-lg w-full p-6 border border-gray-200 dark:border-gray-800">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Edit Initiative</h2>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleEditInitiative}>
-              <div className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editFormData.name}
-                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                    placeholder="Enter initiative name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                    Description
-                  </label>
-                  <textarea
-                    value={editFormData.description}
-                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                    placeholder="Describe the initiative"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                      Status
-                    </label>
-                    <select
-                      value={editFormData.status}
-                      onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as any })}
-                      className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                    >
-                      <option value="planning">Planning</option>
-                      <option value="active">Active</option>
-                      <option value="on-hold">On Hold</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                      Owner
-                    </label>
-                    <input
-                      type="text"
-                      value={editFormData.owner}
-                      onChange={(e) => setEditFormData({ ...editFormData, owner: e.target.value })}
-                      className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                      placeholder="Owner"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                      Target Date
-                    </label>
-                    <input
-                      type="date"
-                      value={editFormData.targetDate}
-                      onChange={(e) => setEditFormData({ ...editFormData, targetDate: e.target.value })}
-                      className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2 mt-5 pt-4 border-t border-gray-200 dark:border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
-                >
-                  Save
                 </button>
               </div>
             </form>
