@@ -243,6 +243,15 @@ export const api = {
     return toCamelCase(result);
   },
 
+  deleteProject: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
   // Milestones
   getMilestones: async (projectId?: string): Promise<Milestone[]> => {
     let query = supabase.from('milestones').select('*');
@@ -282,6 +291,15 @@ export const api = {
     return toCamelCase(result);
   },
 
+  deleteMilestone: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('milestones')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
   // Deliverables
   getDeliverables: async (milestoneId?: string): Promise<Deliverable[]> => {
     let query = supabase.from('deliverables').select('*');
@@ -319,6 +337,15 @@ export const api = {
 
     if (error) throw error;
     return toCamelCase(result);
+  },
+
+  deleteDeliverable: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('deliverables')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   },
 
   // Users
