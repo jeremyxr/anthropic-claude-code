@@ -332,14 +332,20 @@ export const api = {
   },
 
   createUser: async (data: Partial<User>): Promise<User> => {
+    console.log('API createUser - Input data:', data);
     const snakeData = toSnakeCase(data);
+    console.log('API createUser - Snake case data:', snakeData);
     const { data: result, error } = await supabase
       .from('users')
       .insert([snakeData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('API createUser - Supabase error:', error);
+      throw error;
+    }
+    console.log('API createUser - Result:', result);
     return toCamelCase(result);
   },
 
