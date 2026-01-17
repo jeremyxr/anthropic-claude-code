@@ -3,16 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, Initiative, Project, Milestone, Deliverable } from '@/lib/api';
-import InitiativeCard from '@/components/InitiativeCard';
 import StatusBadge from '@/components/StatusBadge';
+
+type Tab = 'all' | 'active' | 'completed' | 'blocked';
 
 export default function Dashboard() {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -21,184 +21,213 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [initData, projData, mileData, delivData] = await Promise.all([
+      const [initData, delivData] = await Promise.all([
         api.getInitiatives(),
-        api.getProjects(),
-        api.getMilestones(),
         api.getDeliverables(),
       ]);
       setInitiatives(initData);
-      setProjects(projData);
-      setMilestones(mileData);
       setDeliverables(delivData);
-      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
+      console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusCounts = (items: any[], statuses: string[]) => {
-    return statuses.reduce((acc, status) => {
-      acc[status] = items.filter(item => item.status === status).length;
-      return acc;
-    }, {} as Record<string, number>);
+  const getFilteredDeliverables = () => {
+    switch (activeTab) {
+      case 'active':
+        return deliverables.filter(d => d.status === 'in-progress');
+      case 'completed':
+        return deliverables.filter(d => d.status === 'done');
+      case 'blocked':
+        return deliverables.filter(d => d.status === 'blocked');
+      default:
+        return deliverables;
+    }
   };
+
+  const filteredDeliverables = getFilteredDeliverables();
+  const blockingDeliverables = deliverables.filter(d => d.status === 'blocked');
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 dark:text-red-400 mb-4">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 dark:text-gray-300">{error}</p>
-          <button
-            onClick={loadData}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const activeInitiatives = initiatives.filter(i => i.status === 'active').length;
-  const completedDeliverables = deliverables.filter(d => d.status === 'done').length;
-  const totalDeliverables = deliverables.length;
-  const jiraLinked = deliverables.filter(d => d.jiraIssueKey).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <nav className="bg-white dark:bg-gray-800 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-gray-900 dark:text-white">
-              Product Dev Hub
-            </Link>
-            <div className="flex space-x-4">
-              <Link href="/dashboard" className="text-blue-600 dark:text-blue-400 font-medium">
-                Dashboard
-              </Link>
-              <Link href="/initiatives" className="text-gray-600 dark:text-gray-300 hover:text-blue-600">
-                Initiatives
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-300">Overview of all your product development work</p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Active Initiatives</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{activeInitiatives}</p>
-              </div>
-              <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-3">
-                <svg className="w-8 h-8 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    <div className="h-screen flex flex-col bg-white dark:bg-gray-950">
+      {/* Header */}
+      <div className="border-b border-gray-200 dark:border-gray-800">
+        <div className="px-6 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">My issues</h1>
+            <div className="flex items-center space-x-2">
+              <button className="p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Total Projects</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{projects.length}</p>
-              </div>
-              <div className="bg-green-100 dark:bg-green-900 rounded-full p-3">
-                <svg className="w-8 h-8 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </button>
+              <button className="p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Deliverables</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                  {completedDeliverables}/{totalDeliverables}
-                </p>
-              </div>
-              <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3">
-                <svg className="w-8 h-8 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </button>
+              <button className="p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-              </div>
+              </button>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">JIRA Linked</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{jiraLinked}</p>
-              </div>
-              <div className="bg-orange-100 dark:bg-orange-900 rounded-full p-3">
-                <svg className="w-8 h-8 text-orange-600 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Initiatives Section */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Recent Initiatives</h2>
-            <Link
-              href="/initiatives"
-              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center"
+          {/* Tabs */}
+          <div className="flex items-center space-x-6 text-sm">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`pb-3 px-1 border-b-2 transition-colors ${
+                activeTab === 'all'
+                  ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-medium'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
             >
-              View all
-              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+              All
+            </button>
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`pb-3 px-1 border-b-2 transition-colors ${
+                activeTab === 'active'
+                  ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-medium'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`pb-3 px-1 border-b-2 transition-colors ${
+                activeTab === 'completed'
+                  ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-medium'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Completed
+            </button>
+            <button
+              onClick={() => setActiveTab('blocked')}
+              className={`pb-3 px-1 border-b-2 transition-colors ${
+                activeTab === 'blocked'
+                  ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-medium'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Blocked
+            </button>
           </div>
+        </div>
+      </div>
 
-          {initiatives.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
-              <p className="text-gray-600 dark:text-gray-300 mb-4">No initiatives yet</p>
-              <Link
-                href="/initiatives"
-                className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Create your first initiative
-              </Link>
+      {/* Filters Bar */}
+      <div className="px-6 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span>Filter</span>
+        </button>
+        <button className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span>Display</span>
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {blockingDeliverables.length > 0 && activeTab === 'all' && (
+          <div className="border-b border-gray-200 dark:border-gray-800">
+            <div className="px-6 py-3">
+              <div className="flex items-center space-x-2 text-sm mb-3">
+                <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="font-medium text-gray-900 dark:text-white">Blocking issues</span>
+                <span className="text-gray-500">{blockingDeliverables.length}</span>
+              </div>
+              {blockingDeliverables.map((deliverable) => (
+                <Link
+                  key={deliverable.id}
+                  href={`/deliverables/${deliverable.id}`}
+                  className="flex items-center py-2 px-3 -mx-3 rounded hover:bg-gray-50 dark:hover:bg-gray-900 group"
+                >
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="text-sm text-gray-900 dark:text-white truncate">{deliverable.name}</span>
+                  </div>
+                  {deliverable.jiraIssueKey && (
+                    <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded mr-3">
+                      {deliverable.jiraIssueKey}
+                    </span>
+                  )}
+                  <StatusBadge status={deliverable.status} type="deliverable" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="px-6 py-3">
+          {filteredDeliverables.length === 0 ? (
+            <div className="text-center py-12">
+              <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-gray-500 dark:text-gray-400">No issues found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {initiatives.slice(0, 6).map((initiative) => (
-                <InitiativeCard key={initiative.id} initiative={initiative} />
+            <div className="space-y-1">
+              {filteredDeliverables.map((deliverable) => (
+                <Link
+                  key={deliverable.id}
+                  href={`/deliverables/${deliverable.id}`}
+                  className="flex items-center py-2 px-3 -mx-3 rounded hover:bg-gray-50 dark:hover:bg-gray-900 group"
+                >
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="text-sm text-gray-900 dark:text-white truncate">{deliverable.name}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    {deliverable.tags && deliverable.tags.length > 0 && (
+                      <div className="flex items-center space-x-1">
+                        {deliverable.tags.slice(0, 2).map((tag, i) => (
+                          <span key={i} className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {deliverable.jiraIssueKey && (
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded">
+                        {deliverable.jiraIssueKey}
+                      </span>
+                    )}
+                    {deliverable.assignee && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{deliverable.assignee}</span>
+                    )}
+                    <StatusBadge status={deliverable.status} type="deliverable" />
+                  </div>
+                </Link>
               ))}
             </div>
           )}
