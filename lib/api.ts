@@ -314,6 +314,67 @@ export const api = {
     return toCamelCase(data) || [];
   },
 
+  getDeliverable: async (id: string): Promise<Deliverable> => {
+    const { data, error } = await supabase
+      .from('deliverables')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(data);
+  },
+
+  getDeliverableWithContext: async (id: string): Promise<{
+    deliverable: Deliverable;
+    milestone: Milestone;
+    project: Project;
+    initiative: Initiative;
+  }> => {
+    // Get the deliverable
+    const { data: deliverable, error: deliverableError } = await supabase
+      .from('deliverables')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (deliverableError) throw deliverableError;
+
+    // Get the milestone
+    const { data: milestone, error: milestoneError } = await supabase
+      .from('milestones')
+      .select('*')
+      .eq('id', deliverable.milestone_id)
+      .single();
+
+    if (milestoneError) throw milestoneError;
+
+    // Get the project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', milestone.project_id)
+      .single();
+
+    if (projectError) throw projectError;
+
+    // Get the initiative
+    const { data: initiative, error: initiativeError } = await supabase
+      .from('initiatives')
+      .select('*')
+      .eq('id', project.initiative_id)
+      .single();
+
+    if (initiativeError) throw initiativeError;
+
+    return {
+      deliverable: toCamelCase(deliverable),
+      milestone: toCamelCase(milestone),
+      project: toCamelCase(project),
+      initiative: toCamelCase(initiative),
+    };
+  },
+
   createDeliverable: async (data: Partial<Deliverable>): Promise<Deliverable> => {
     const snakeData = toSnakeCase(data);
     const { data: result, error } = await supabase
