@@ -3,19 +3,20 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { api, Initiative, Project, Milestone, Deliverable } from '@/lib/api';
+import { api, Initiative, Project, Milestone, Deliverable, TeamMember } from '@/lib/api';
 import StatusBadge from '@/components/StatusBadge';
 import { useUser } from '@/lib/user-context';
 
 export default function InitiativeDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const { currentUser } = useUser();
+  const { currentUser, currentTeam } = useUser();
 
   const [initiative, setInitiative] = useState<Initiative | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [milestones, setMilestones] = useState<Record<string, Milestone[]>>({});
   const [deliverables, setDeliverables] = useState<Record<string, Deliverable[]>>({});
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
@@ -33,6 +34,7 @@ export default function InitiativeDetailPage() {
     description: '',
     status: 'not-started' as const,
     lead: '',
+    targetDeliveryDate: '',
   });
 
   const [milestoneFormData, setMilestoneFormData] = useState({
@@ -48,6 +50,9 @@ export default function InitiativeDetailPage() {
     status: 'todo' as const,
     type: '',
     assignee: '',
+    priority: 'medium' as const,
+    dueDate: '',
+    tags: '',
     jiraIssueKey: '',
   });
 
@@ -65,6 +70,12 @@ export default function InitiativeDetailPage() {
 
       const projectsData = await api.getProjects(id);
       setProjects(projectsData);
+
+      // Load team members if we have a team
+      if (currentTeam) {
+        const members = await api.getTeamMembers(currentTeam.id);
+        setTeamMembers(members);
+      }
 
       // Load milestones for each project
       const milestonesMap: Record<string, Milestone[]> = {};
@@ -115,6 +126,7 @@ export default function InitiativeDetailPage() {
       await api.createProject({
         ...projectFormData,
         initiativeId: id,
+        targetDeliveryDate: projectFormData.targetDeliveryDate || null,
         createdBy: currentUser?.id
       });
       setShowCreateProjectModal(false);
@@ -123,6 +135,7 @@ export default function InitiativeDetailPage() {
         description: '',
         status: 'not-started',
         lead: '',
+        targetDeliveryDate: '',
       });
       loadData();
     } catch (err) {
@@ -158,8 +171,21 @@ export default function InitiativeDetailPage() {
   const handleCreateDeliverable = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Convert comma-separated tags string to array
+      const tagsArray = deliverableFormData.tags
+        ? deliverableFormData.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+        : [];
+
       await api.createDeliverable({
-        ...deliverableFormData,
+        name: deliverableFormData.name,
+        description: deliverableFormData.description || undefined,
+        status: deliverableFormData.status,
+        type: deliverableFormData.type || undefined,
+        assignee: deliverableFormData.assignee || null,
+        priority: deliverableFormData.priority,
+        dueDate: deliverableFormData.dueDate || null,
+        tags: tagsArray,
+        jiraIssueKey: deliverableFormData.jiraIssueKey || null,
         milestoneId: selectedMilestoneId,
         createdBy: currentUser?.id
       });
@@ -170,6 +196,9 @@ export default function InitiativeDetailPage() {
         status: 'todo',
         type: '',
         assignee: '',
+        priority: 'medium',
+        dueDate: '',
+        tags: '',
         jiraIssueKey: '',
       });
       setSelectedMilestoneId('');

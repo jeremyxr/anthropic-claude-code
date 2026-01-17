@@ -21,6 +21,7 @@ export interface Project {
   initiativeId: string;
   status: 'not-started' | 'in-progress' | 'completed' | 'on-hold';
   lead: string | null;
+  targetDeliveryDate: string | null;
   createdBy?: string;
   updatedBy?: string;
   createdAt: string;
@@ -43,11 +44,13 @@ export interface Milestone {
 export interface Deliverable {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   milestoneId: string;
   status: 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked';
-  type: string;
+  type?: string;
   assignee: string | null;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  dueDate: string | null;
   jiraIssueKey: string | null;
   jiraIssueId: string | null;
   tags: string[];
