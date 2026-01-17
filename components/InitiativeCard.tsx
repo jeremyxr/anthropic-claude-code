@@ -19,18 +19,7 @@ export default function InitiativeCard({ initiative }: InitiativeCardProps) {
           {initiative.description || 'No description'}
         </p>
 
-        <div className="flex flex-wrap gap-2 mb-4">
-          {initiative.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded text-xs"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mt-4">
           <div>
             {initiative.owner && (
               <div className="flex items-center">
