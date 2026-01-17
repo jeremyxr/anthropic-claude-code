@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api, Initiative, Project, Milestone, Deliverable } from '@/lib/api';
 import StatusBadge from '@/components/StatusBadge';
+import { useUser } from '@/lib/user-context';
 
 export default function InitiativeDetailPage() {
   const params = useParams();
   const id = params?.id as string;
+  const { currentUser } = useUser();
 
   const [initiative, setInitiative] = useState<Initiative | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -110,7 +112,11 @@ export default function InitiativeDetailPage() {
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createProject({ ...projectFormData, initiativeId: id });
+      await api.createProject({
+        ...projectFormData,
+        initiativeId: id,
+        createdBy: currentUser?.id
+      });
       setShowCreateProjectModal(false);
       setProjectFormData({
         name: '',
@@ -128,7 +134,12 @@ export default function InitiativeDetailPage() {
   const handleCreateMilestone = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createMilestone({ ...milestoneFormData, projectId: selectedProjectId });
+      await api.createMilestone({
+        ...milestoneFormData,
+        projectId: selectedProjectId,
+        dueDate: milestoneFormData.dueDate || null, // Convert empty string to null
+        createdBy: currentUser?.id
+      });
       setShowCreateMilestoneModal(false);
       setMilestoneFormData({
         name: '',
@@ -147,7 +158,11 @@ export default function InitiativeDetailPage() {
   const handleCreateDeliverable = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createDeliverable({ ...deliverableFormData, milestoneId: selectedMilestoneId });
+      await api.createDeliverable({
+        ...deliverableFormData,
+        milestoneId: selectedMilestoneId,
+        createdBy: currentUser?.id
+      });
       setShowCreateDeliverableModal(false);
       setDeliverableFormData({
         name: '',
