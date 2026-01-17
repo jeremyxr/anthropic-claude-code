@@ -27,6 +27,14 @@ export default function InitiativeDetailPage() {
     targetDeliveryDate: '',
   });
 
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    description: '',
+    status: 'planning' as Initiative['status'],
+    owner: '',
+    targetDate: '',
+  });
+
   useEffect(() => {
     if (id) {
       loadData();
