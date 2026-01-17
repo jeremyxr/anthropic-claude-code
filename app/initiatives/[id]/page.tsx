@@ -18,6 +18,37 @@ export default function InitiativeDetailPage() {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
 
+  // Modal states
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [showCreateMilestoneModal, setShowCreateMilestoneModal] = useState(false);
+  const [showCreateDeliverableModal, setShowCreateDeliverableModal] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>('');
+
+  // Form data states
+  const [projectFormData, setProjectFormData] = useState({
+    name: '',
+    description: '',
+    status: 'not-started' as const,
+    lead: '',
+  });
+
+  const [milestoneFormData, setMilestoneFormData] = useState({
+    name: '',
+    description: '',
+    status: 'not-started' as const,
+    dueDate: '',
+  });
+
+  const [deliverableFormData, setDeliverableFormData] = useState({
+    name: '',
+    description: '',
+    status: 'todo' as const,
+    type: '',
+    assignee: '',
+    jiraIssueKey: '',
+  });
+
   useEffect(() => {
     if (id) {
       loadData();
@@ -74,6 +105,64 @@ export default function InitiativeDetailPage() {
       newExpanded.add(milestoneId);
     }
     setExpandedMilestones(newExpanded);
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createProject({ ...projectFormData, initiativeId: id });
+      setShowCreateProjectModal(false);
+      setProjectFormData({
+        name: '',
+        description: '',
+        status: 'not-started',
+        lead: '',
+      });
+      loadData();
+    } catch (err) {
+      console.error('Failed to create project:', err);
+      alert('Failed to create project');
+    }
+  };
+
+  const handleCreateMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createMilestone({ ...milestoneFormData, projectId: selectedProjectId });
+      setShowCreateMilestoneModal(false);
+      setMilestoneFormData({
+        name: '',
+        description: '',
+        status: 'not-started',
+        dueDate: '',
+      });
+      setSelectedProjectId('');
+      loadData();
+    } catch (err) {
+      console.error('Failed to create milestone:', err);
+      alert('Failed to create milestone');
+    }
+  };
+
+  const handleCreateDeliverable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createDeliverable({ ...deliverableFormData, milestoneId: selectedMilestoneId });
+      setShowCreateDeliverableModal(false);
+      setDeliverableFormData({
+        name: '',
+        description: '',
+        status: 'todo',
+        type: '',
+        assignee: '',
+        jiraIssueKey: '',
+      });
+      setSelectedMilestoneId('');
+      loadData();
+    } catch (err) {
+      console.error('Failed to create deliverable:', err);
+      alert('Failed to create deliverable');
+    }
   };
 
   if (loading) {
@@ -135,6 +224,19 @@ export default function InitiativeDetailPage() {
           </div>
         </div>
 
+        {/* Add Project Button */}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowCreateProjectModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Add Project</span>
+          </button>
+        </div>
+
         {/* Hierarchical View */}
         <div className="space-y-4">
           {projects.length === 0 ? (
@@ -176,6 +278,21 @@ export default function InitiativeDetailPage() {
                 {/* Milestones */}
                 {expandedProjects.has(project.id) && (
                   <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProjectId(project.id);
+                          setShowCreateMilestoneModal(true);
+                        }}
+                        className="flex items-center space-x-2 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Add Milestone</span>
+                      </button>
+                    </div>
                     {milestones[project.id]?.length === 0 ? (
                       <div className="p-6 text-center text-gray-500 dark:text-gray-400">
                         No milestones yet
@@ -214,6 +331,21 @@ export default function InitiativeDetailPage() {
                           {/* Deliverables */}
                           {expandedMilestones.has(milestone.id) && (
                             <div className="bg-white dark:bg-gray-800">
+                              <div className="p-4 pl-16 border-b border-gray-100 dark:border-gray-700">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedMilestoneId(milestone.id);
+                                    setShowCreateDeliverableModal(true);
+                                  }}
+                                  className="flex items-center space-x-2 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                  <span>Add Deliverable</span>
+                                </button>
+                              </div>
                               {deliverables[milestone.id]?.length === 0 ? (
                                 <div className="p-6 pl-24 text-center text-gray-500 dark:text-gray-400">
                                   No deliverables yet
@@ -263,6 +395,325 @@ export default function InitiativeDetailPage() {
             ))
           )}
         </div>
+
+        {/* Create Project Modal */}
+        {showCreateProjectModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full p-6 shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Project</h2>
+                <button
+                  onClick={() => setShowCreateProjectModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateProject}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={projectFormData.name}
+                      onChange={(e) => setProjectFormData({ ...projectFormData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      placeholder="Enter project name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Description
+                    </label>
+                    <textarea
+                      value={projectFormData.description}
+                      onChange={(e) => setProjectFormData({ ...projectFormData, description: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      placeholder="Describe the project"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Status
+                      </label>
+                      <select
+                        value={projectFormData.status}
+                        onChange={(e) => setProjectFormData({ ...projectFormData, status: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      >
+                        <option value="not-started">Not Started</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="on-hold">On Hold</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Lead
+                      </label>
+                      <input
+                        type="text"
+                        value={projectFormData.lead}
+                        onChange={(e) => setProjectFormData({ ...projectFormData, lead: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                        placeholder="Project lead"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateProjectModal(false)}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-md text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Create Milestone Modal */}
+        {showCreateMilestoneModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full p-6 shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Milestone</h2>
+                <button
+                  onClick={() => setShowCreateMilestoneModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateMilestone}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={milestoneFormData.name}
+                      onChange={(e) => setMilestoneFormData({ ...milestoneFormData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      placeholder="Enter milestone name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Description
+                    </label>
+                    <textarea
+                      value={milestoneFormData.description}
+                      onChange={(e) => setMilestoneFormData({ ...milestoneFormData, description: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      placeholder="Describe the milestone"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Status
+                      </label>
+                      <select
+                        value={milestoneFormData.status}
+                        onChange={(e) => setMilestoneFormData({ ...milestoneFormData, status: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      >
+                        <option value="not-started">Not Started</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="at-risk">At Risk</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Due Date
+                      </label>
+                      <input
+                        type="date"
+                        value={milestoneFormData.dueDate}
+                        onChange={(e) => setMilestoneFormData({ ...milestoneFormData, dueDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateMilestoneModal(false)}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-md text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Create Deliverable Modal */}
+        {showCreateDeliverableModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full p-6 shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Deliverable</h2>
+                <button
+                  onClick={() => setShowCreateDeliverableModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateDeliverable}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={deliverableFormData.name}
+                      onChange={(e) => setDeliverableFormData({ ...deliverableFormData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      placeholder="Enter deliverable name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Description
+                    </label>
+                    <textarea
+                      value={deliverableFormData.description}
+                      onChange={(e) => setDeliverableFormData({ ...deliverableFormData, description: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      placeholder="Describe the deliverable"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Status
+                      </label>
+                      <select
+                        value={deliverableFormData.status}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, status: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      >
+                        <option value="todo">To Do</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="in-review">In Review</option>
+                        <option value="done">Done</option>
+                        <option value="blocked">Blocked</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Type
+                      </label>
+                      <input
+                        type="text"
+                        value={deliverableFormData.type}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, type: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                        placeholder="e.g., Feature, Bug, Design"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Assignee
+                      </label>
+                      <input
+                        type="text"
+                        value={deliverableFormData.assignee}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, assignee: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                        placeholder="Assigned to"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        JIRA Issue Key
+                      </label>
+                      <input
+                        type="text"
+                        value={deliverableFormData.jiraIssueKey}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, jiraIssueKey: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                        placeholder="e.g., PROJ-123"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateDeliverableModal(false)}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-md text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
