@@ -3,8 +3,8 @@ import './globals.css';
 import Sidebar from '@/components/Sidebar';
 
 export const metadata: Metadata = {
-  title: 'Product Dev Collaboration',
-  description: 'Manage product development work with design collaboration on top of JIRA',
+  title: 'JaneFlow',
+  description: 'Product development collaboration tool',
 };
 
 export default function RootLayout({

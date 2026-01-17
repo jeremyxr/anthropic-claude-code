@@ -1,7 +1,7 @@
 {
-  "name": "anthropic-claude-code",
+  "name": "janeflow",
   "version": "1.0.0",
-  "description": "Product Development Collaboration App on JIRA",
+  "description": "JaneFlow - Product Development Collaboration Tool",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
