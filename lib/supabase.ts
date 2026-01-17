@@ -3,6 +3,23 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// Debug logging
+if (typeof window !== 'undefined') {
+  console.log('Supabase Config:', {
+    url: supabaseUrl || 'MISSING',
+    hasKey: !!supabaseAnonKey,
+    keyLength: supabaseAnonKey?.length || 0
+  });
+}
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables!', {
+    url: supabaseUrl,
+    hasKey: !!supabaseAnonKey
+  });
+  throw new Error('Supabase environment variables are not set. Please check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Database types
