@@ -164,7 +164,7 @@ export default function Dashboard() {
               {blockingDeliverables.map((deliverable) => (
                 <Link
                   key={deliverable.id}
-                  href={`/deliverables/${deliverable.id}`}
+                  href={`/tasks/${deliverable.id}`}
                   className="flex items-center py-2 px-3 -mx-3 rounded hover:bg-gray-50 dark:hover:bg-gray-900 group"
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -198,7 +198,7 @@ export default function Dashboard() {
               {filteredDeliverables.map((deliverable) => (
                 <Link
                   key={deliverable.id}
-                  href={`/deliverables/${deliverable.id}`}
+                  href={`/tasks/${deliverable.id}`}
                   className="flex items-center py-2 px-3 -mx-3 rounded hover:bg-gray-50 dark:hover:bg-gray-900 group"
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
