@@ -3,19 +3,20 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { api, Initiative, Project, Milestone, Deliverable } from '@/lib/api';
+import { api, Initiative, Project, Milestone, Deliverable, TeamMember } from '@/lib/api';
 import StatusBadge from '@/components/StatusBadge';
 import { useUser } from '@/lib/user-context';
 
 export default function InitiativeDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const { currentUser } = useUser();
+  const { currentUser, currentTeam } = useUser();
 
   const [initiative, setInitiative] = useState<Initiative | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [milestones, setMilestones] = useState<Record<string, Milestone[]>>({});
   const [deliverables, setDeliverables] = useState<Record<string, Deliverable[]>>({});
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
@@ -33,6 +34,7 @@ export default function InitiativeDetailPage() {
     description: '',
     status: 'not-started' as const,
     lead: '',
+    targetDeliveryDate: '',
   });
 
   const [milestoneFormData, setMilestoneFormData] = useState({
@@ -48,6 +50,9 @@ export default function InitiativeDetailPage() {
     status: 'todo' as const,
     type: '',
     assignee: '',
+    priority: 'medium' as const,
+    dueDate: '',
+    tags: '',
     jiraIssueKey: '',
   });
 
@@ -65,6 +70,12 @@ export default function InitiativeDetailPage() {
 
       const projectsData = await api.getProjects(id);
       setProjects(projectsData);
+
+      // Load team members if we have a team
+      if (currentTeam) {
+        const members = await api.getTeamMembers(currentTeam.id);
+        setTeamMembers(members);
+      }
 
       // Load milestones for each project
       const milestonesMap: Record<string, Milestone[]> = {};
@@ -115,6 +126,7 @@ export default function InitiativeDetailPage() {
       await api.createProject({
         ...projectFormData,
         initiativeId: id,
+        targetDeliveryDate: projectFormData.targetDeliveryDate || null,
         createdBy: currentUser?.id
       });
       setShowCreateProjectModal(false);
@@ -123,6 +135,7 @@ export default function InitiativeDetailPage() {
         description: '',
         status: 'not-started',
         lead: '',
+        targetDeliveryDate: '',
       });
       loadData();
     } catch (err) {
@@ -158,8 +171,21 @@ export default function InitiativeDetailPage() {
   const handleCreateDeliverable = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Convert comma-separated tags string to array
+      const tagsArray = deliverableFormData.tags
+        ? deliverableFormData.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+        : [];
+
       await api.createDeliverable({
-        ...deliverableFormData,
+        name: deliverableFormData.name,
+        description: deliverableFormData.description || undefined,
+        status: deliverableFormData.status,
+        type: deliverableFormData.type || undefined,
+        assignee: deliverableFormData.assignee || null,
+        priority: deliverableFormData.priority,
+        dueDate: deliverableFormData.dueDate || null,
+        tags: tagsArray,
+        jiraIssueKey: deliverableFormData.jiraIssueKey || null,
         milestoneId: selectedMilestoneId,
         createdBy: currentUser?.id
       });
@@ -170,6 +196,9 @@ export default function InitiativeDetailPage() {
         status: 'todo',
         type: '',
         assignee: '',
+        priority: 'medium',
+        dueDate: '',
+        tags: '',
         jiraIssueKey: '',
       });
       setSelectedMilestoneId('');
@@ -456,7 +485,7 @@ export default function InitiativeDetailPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Status
@@ -475,14 +504,31 @@ export default function InitiativeDetailPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Lead
+                        Assigned Owner
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={projectFormData.lead}
                         onChange={(e) => setProjectFormData({ ...projectFormData, lead: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                        placeholder="Project lead"
+                      >
+                        <option value="">No owner</option>
+                        {teamMembers.map((member) => (
+                          <option key={member.userId} value={member.userId}>
+                            {member.user?.name || member.user?.email || 'Unknown'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Target Delivery Date
+                      </label>
+                      <input
+                        type="date"
+                        value={projectFormData.targetDeliveryDate}
+                        onChange={(e) => setProjectFormData({ ...projectFormData, targetDeliveryDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                       />
                     </div>
                   </div>
@@ -649,7 +695,7 @@ export default function InitiativeDetailPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Status
@@ -669,6 +715,22 @@ export default function InitiativeDetailPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Priority
+                      </label>
+                      <select
+                        value={deliverableFormData.priority}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, priority: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Type
                       </label>
                       <input
@@ -676,7 +738,7 @@ export default function InitiativeDetailPage() {
                         value={deliverableFormData.type}
                         onChange={(e) => setDeliverableFormData({ ...deliverableFormData, type: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                        placeholder="e.g., Feature, Bug, Design"
+                        placeholder="e.g., Feature, Bug"
                       />
                     </div>
                   </div>
@@ -684,15 +746,48 @@ export default function InitiativeDetailPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Assignee
+                        Assigned Owner
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={deliverableFormData.assignee}
                         onChange={(e) => setDeliverableFormData({ ...deliverableFormData, assignee: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                        placeholder="Assigned to"
+                      >
+                        <option value="">No assignee</option>
+                        {teamMembers.map((member) => (
+                          <option key={member.userId} value={member.userId}>
+                            {member.user?.name || member.user?.email || 'Unknown'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Due Date
+                      </label>
+                      <input
+                        type="date"
+                        value={deliverableFormData.dueDate}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, dueDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Tags
+                      </label>
+                      <input
+                        type="text"
+                        value={deliverableFormData.tags}
+                        onChange={(e) => setDeliverableFormData({ ...deliverableFormData, tags: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                        placeholder="tag1, tag2, tag3"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Comma-separated tags</p>
                     </div>
 
                     <div>
