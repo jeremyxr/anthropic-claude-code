@@ -225,15 +225,22 @@ export default function SettingsPage() {
               e.preventDefault();
               setIsLoading(true);
               try {
+                console.log('Creating user with data:', {
+                  email: profileForm.email,
+                  name: profileForm.name,
+                  avatarUrl: profileForm.avatarUrl || null
+                });
                 const user = await api.createUser({
                   email: profileForm.email,
                   name: profileForm.name,
                   avatarUrl: profileForm.avatarUrl || null,
                 });
+                console.log('User created successfully:', user);
                 setCurrentUser(user);
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Failed to create user:', error);
-                alert('Failed to create user');
+                const errorMessage = error?.message || error?.error_description || JSON.stringify(error);
+                alert(`Failed to create user: ${errorMessage}`);
               } finally {
                 setIsLoading(false);
               }
