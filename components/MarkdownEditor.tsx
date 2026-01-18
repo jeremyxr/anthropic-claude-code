@@ -51,10 +51,23 @@ export function MarkdownEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initialValueRef = useRef<string>(value);
+  const isInitialMountRef = useRef(true);
 
   // Auto-save functionality
   useEffect(() => {
+    // Skip auto-save on initial mount
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
     if (autoSave && onSave) {
+      // Only auto-save if value has actually changed
+      if (value === initialValueRef.current) {
+        return;
+      }
+
       // Clear existing timer
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
@@ -348,8 +361,14 @@ export function MarkdownEditor({
             </button>
           )}
         </div>
-        {isSaving && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
-        {!autoSave && onSave && <span>Cmd/Ctrl+Enter to save</span>}
+        <div className="flex items-center space-x-2">
+          {isSaving && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
+          {autoSave ? (
+            <span>Press Esc to close</span>
+          ) : (
+            onSave && <span>Cmd/Ctrl+Enter to save</span>
+          )}
+        </div>
       </div>
 
       {/* Hidden file input */}

@@ -63,6 +63,23 @@ export function InlineEdit({
     }
   };
 
+  // Auto-save handler - saves but doesn't exit editing mode
+  const handleAutoSave = async () => {
+    if (editValue.trim() === value.trim()) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onSave(editValue.trim());
+      // Don't set setIsEditing(false) - keep user in editing mode
+    } catch (err) {
+      console.error('Failed to auto-save:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCancel = () => {
     setEditValue(value);
     setIsEditing(false);
@@ -88,7 +105,7 @@ export function InlineEdit({
           <MarkdownEditor
             value={editValue}
             onChange={setEditValue}
-            onSave={handleSave}
+            onSave={handleAutoSave}
             onCancel={handleCancel}
             placeholder={placeholder}
             userId={userId}
