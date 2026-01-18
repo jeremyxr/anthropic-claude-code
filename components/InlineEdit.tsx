@@ -81,7 +81,7 @@ export function InlineEdit({
   };
 
   if (isEditing) {
-    // Markdown editing mode with live preview
+    // Markdown editing mode with auto-save
     if (markdown) {
       return (
         <div className="relative">
@@ -92,7 +92,9 @@ export function InlineEdit({
             onCancel={handleCancel}
             placeholder={placeholder}
             userId={userId}
-            minHeight="300px"
+            autoSave={true}
+            autoSaveDelay={1000}
+            rows={multiline ? 5 : 3}
           />
         </div>
       );

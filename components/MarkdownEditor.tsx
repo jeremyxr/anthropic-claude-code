@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MarkdownDisplay } from './MarkdownDisplay';
 import { uploadImage } from '@/lib/imageUpload';
 
 interface MarkdownEditorProps {
@@ -10,25 +9,28 @@ interface MarkdownEditorProps {
   onSave?: () => void;
   onCancel?: () => void;
   placeholder?: string;
-  userId?: string; // For image uploads
-  minHeight?: string;
+  userId?: string;
+  autoSave?: boolean;
+  autoSaveDelay?: number;
   className?: string;
+  rows?: number;
 }
 
 interface ToolbarItem {
   label: string;
+  icon: string;
+  shortcut?: string;
   action: () => void;
-  icon?: string;
-  description: string;
+  divider?: boolean;
 }
 
 /**
- * Markdown editor with live preview and slash command toolbar
+ * Simplified markdown editor with auto-save and slash command toolbar
  * Features:
- * - Split view: textarea on left, live preview on right
+ * - Single textarea (no split view)
  * - Type "/" to show formatting toolbar
- * - Upload images with button
- * - Keyboard shortcuts (Cmd/Ctrl+Enter to save, Esc to cancel)
+ * - Auto-save support with debouncing
+ * - Upload images
  */
 export function MarkdownEditor({
   value,
@@ -37,35 +39,64 @@ export function MarkdownEditor({
   onCancel,
   placeholder = 'Type / for formatting options...',
   userId,
-  minHeight = '200px',
+  autoSave = false,
+  autoSaveDelay = 1000,
   className = '',
+  rows = 5,
 }: MarkdownEditorProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Detect "/" key to show toolbar
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Show toolbar when "/" is typed
-    if (e.key === '/' && !showToolbar) {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        const cursorPosition = textarea.selectionStart;
-        const textBeforeCursor = value.substring(0, cursorPosition);
-        const lastChar = textBeforeCursor[textBeforeCursor.length - 1];
+  // Auto-save functionality
+  useEffect(() => {
+    if (autoSave && onSave) {
+      // Clear existing timer
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
 
-        // Only show if "/" is at start of line or after whitespace
-        if (cursorPosition === 0 || lastChar === '\n' || lastChar === ' ') {
-          // Calculate position for toolbar popup
-          const rect = textarea.getBoundingClientRect();
-          setToolbarPosition({
-            top: rect.top + window.scrollY + 20,
-            left: rect.left + window.scrollX,
-          });
-          setShowToolbar(true);
+      // Set new timer
+      autoSaveTimerRef.current = setTimeout(async () => {
+        setIsSaving(true);
+        await onSave();
+        setIsSaving(false);
+      }, autoSaveDelay);
+
+      // Cleanup
+      return () => {
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
         }
+      };
+    }
+  }, [value, autoSave, autoSaveDelay, onSave]);
+
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const cursorPosition = textarea.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPosition);
+
+    // Show toolbar when "/" is typed at start of line or after whitespace
+    if (e.key === '/' && !showToolbar) {
+      const lastChar = textBeforeCursor[textBeforeCursor.length - 1];
+      if (cursorPosition === 0 || lastChar === '\n' || lastChar === ' ') {
+        const rect = textarea.getBoundingClientRect();
+        const lineHeight = 20;
+        const lines = textBeforeCursor.split('\n').length;
+
+        setToolbarPosition({
+          top: rect.top + window.scrollY + (lines * lineHeight),
+          left: rect.left + window.scrollX,
+        });
+        setShowToolbar(true);
       }
     }
 
@@ -80,8 +111,8 @@ export function MarkdownEditor({
       }
     }
 
-    // Save on Cmd/Ctrl+Enter
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && onSave) {
+    // Manual save on Cmd/Ctrl+Enter (if not auto-saving)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && onSave && !autoSave) {
       e.preventDefault();
       onSave();
     }
@@ -89,6 +120,41 @@ export function MarkdownEditor({
     // Close toolbar on other keys
     if (showToolbar && e.key !== '/') {
       setShowToolbar(false);
+    }
+
+    // Handle keyboard shortcuts for formatting
+    if (e.metaKey || e.ctrlKey) {
+      if (e.shiftKey) {
+        // Ctrl+Shift+1/2/3 for headings
+        if (e.key === '!' || e.key === '1') {
+          e.preventDefault();
+          insertHeading(1);
+        } else if (e.key === '@' || e.key === '2') {
+          e.preventDefault();
+          insertHeading(2);
+        } else if (e.key === '#' || e.key === '3') {
+          e.preventDefault();
+          insertHeading(3);
+        } else if (e.key === '*' || e.key === '8') {
+          e.preventDefault();
+          insertBulletList();
+        } else if (e.key === '(' || e.key === '9') {
+          e.preventDefault();
+          insertNumberedList();
+        } else if (e.key === '&' || e.key === '7') {
+          e.preventDefault();
+          insertChecklist();
+        } else if (e.key === 'U') {
+          e.preventDefault();
+          fileInputRef.current?.click();
+        } else if (e.key === '\\') {
+          e.preventDefault();
+          insertCodeBlock();
+        } else if (e.key === '>' || e.key === '.') {
+          e.preventDefault();
+          insertBlockquote();
+        }
+      }
     }
   };
 
@@ -126,61 +192,94 @@ export function MarkdownEditor({
     }, 0);
   };
 
-  // Toolbar actions
+  const insertHeading = (level: number) => {
+    const hashes = '#'.repeat(level);
+    insertAtCursor(`${hashes} `, '', 'Heading');
+  };
+
+  const insertBulletList = () => {
+    insertAtCursor('- ', '', 'List item');
+  };
+
+  const insertNumberedList = () => {
+    insertAtCursor('1. ', '', 'List item');
+  };
+
+  const insertChecklist = () => {
+    insertAtCursor('- [ ] ', '', 'Task item');
+  };
+
+  const insertCodeBlock = () => {
+    insertAtCursor('```\n', '\n```', 'code');
+  };
+
+  const insertBlockquote = () => {
+    insertAtCursor('> ', '', 'Quote');
+  };
+
+  // Toolbar actions matching the design
   const toolbarItems: ToolbarItem[] = [
     {
-      label: 'Bold',
-      icon: '**B**',
-      description: 'Make text bold',
-      action: () => insertAtCursor('**', '**', 'bold text'),
+      label: 'Heading 1',
+      icon: 'H₁',
+      shortcut: 'Ctrl ⇧ 1',
+      action: () => insertHeading(1),
     },
     {
-      label: 'Italic',
-      icon: '*I*',
-      description: 'Make text italic',
-      action: () => insertAtCursor('*', '*', 'italic text'),
+      label: 'Heading 2',
+      icon: 'H₂',
+      shortcut: 'Ctrl ⇧ 2',
+      action: () => insertHeading(2),
     },
     {
-      label: 'Heading',
-      icon: 'H1',
-      description: 'Create a heading',
-      action: () => insertAtCursor('## ', '', 'Heading'),
+      label: 'Heading 3',
+      icon: 'H₃',
+      shortcut: 'Ctrl ⇧ 3',
+      action: () => insertHeading(3),
+      divider: true,
     },
     {
-      label: 'Link',
-      icon: '🔗',
-      description: 'Insert a link',
-      action: () => insertAtCursor('[', '](url)', 'link text'),
+      label: 'Bulleted list',
+      icon: '≣',
+      shortcut: 'Ctrl ⇧ 8',
+      action: insertBulletList,
     },
     {
-      label: 'Image',
-      icon: '🖼️',
-      description: 'Insert an image',
-      action: () => insertAtCursor('![', '](image-url)', 'alt text'),
+      label: 'Numbered list',
+      icon: '≡',
+      shortcut: 'Ctrl ⇧ 9',
+      action: insertNumberedList,
     },
     {
-      label: 'Bullet List',
-      icon: '•',
-      description: 'Create a bullet list',
-      action: () => insertAtCursor('- ', '', 'list item'),
+      label: 'Checklist',
+      icon: '☑',
+      shortcut: 'Ctrl ⇧ 7',
+      action: insertChecklist,
+      divider: true,
     },
     {
-      label: 'Numbered List',
-      icon: '1.',
-      description: 'Create a numbered list',
-      action: () => insertAtCursor('1. ', '', 'list item'),
+      label: 'Insert media...',
+      icon: '🖼',
+      action: () => fileInputRef.current?.click(),
     },
     {
-      label: 'Quote',
+      label: 'Attach files...',
+      icon: '📎',
+      shortcut: 'Ctrl ⇧ U',
+      action: () => fileInputRef.current?.click(),
+      divider: true,
+    },
+    {
+      label: 'Code block',
+      icon: '</>',
+      shortcut: 'Ctrl ⇧ \\',
+      action: insertCodeBlock,
+    },
+    {
+      label: 'Blockquote',
       icon: '❝',
-      description: 'Insert a blockquote',
-      action: () => insertAtCursor('> ', '', 'quote'),
-    },
-    {
-      label: 'Code',
-      icon: '< >',
-      description: 'Insert code block',
-      action: () => insertAtCursor('`', '`', 'code'),
+      shortcut: 'Ctrl ⇧ .',
+      action: insertBlockquote,
     },
   ];
 
@@ -216,7 +315,6 @@ export function MarkdownEditor({
       alert(error instanceof Error ? error.message : 'Failed to upload image');
     } finally {
       setIsUploading(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -225,72 +323,48 @@ export function MarkdownEditor({
 
   return (
     <div className={`relative ${className}`}>
-      {/* Split View Container */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Left: Editor */}
-        <div className="relative">
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm resize-y font-mono"
-            style={{ minHeight }}
-          />
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm resize-y"
+      />
 
-          {/* Helper Text */}
-          <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <div className="flex items-center space-x-3">
-              <span>Type / for formatting</span>
-              {userId && (
-                <>
-                  <span>•</span>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
-                  >
-                    {isUploading ? 'Uploading...' : 'Upload image'}
-                  </button>
-                </>
-              )}
-            </div>
-            {onSave && (
-              <span>Cmd/Ctrl+Enter to save, Esc to cancel</span>
-            )}
-          </div>
-
-          {/* Hidden file input for image upload */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
-        </div>
-
-        {/* Right: Live Preview */}
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 overflow-y-auto bg-gray-50 dark:bg-gray-900" style={{ minHeight }}>
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
-            Preview
-          </div>
-          {value ? (
-            <MarkdownDisplay content={value} />
-          ) : (
-            <div className="text-sm text-gray-400 dark:text-gray-500 italic">
-              Nothing to preview yet...
-            </div>
+      {/* Status indicators */}
+      <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center space-x-2">
+          <span>Type / for formatting</span>
+          {userId && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+            >
+              {isUploading ? 'Uploading...' : 'Upload image'}
+            </button>
           )}
         </div>
+        {isSaving && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
+        {!autoSave && onSave && <span>Cmd/Ctrl+Enter to save</span>}
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
 
       {/* Slash Command Toolbar */}
       {showToolbar && (
         <>
-          {/* Backdrop to close toolbar */}
+          {/* Backdrop */}
           <div
             className="fixed inset-0 z-40"
             onClick={() => setShowToolbar(false)}
@@ -298,34 +372,37 @@ export function MarkdownEditor({
 
           {/* Toolbar Menu */}
           <div
-            className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 w-64"
+            className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-2 w-80"
             style={{
               top: toolbarPosition.top,
               left: toolbarPosition.left,
             }}
           >
-            <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700 mb-1">
-              Formatting
-            </div>
             {toolbarItems.map((item, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={item.action}
-                className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 group"
-              >
-                <span className="text-sm font-mono text-gray-500 dark:text-gray-400 w-10">
-                  {item.icon}
-                </span>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {item.label}
+              <div key={index}>
+                <button
+                  type="button"
+                  onClick={item.action}
+                  className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between group transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-lg w-6 text-center text-gray-600 dark:text-gray-400">
+                      {item.icon}
+                    </span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {item.label}
+                    </span>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {item.description}
-                  </div>
-                </div>
-              </button>
+                  {item.shortcut && (
+                    <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                      {item.shortcut}
+                    </span>
+                  )}
+                </button>
+                {item.divider && (
+                  <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                )}
+              </div>
             ))}
           </div>
         </>
