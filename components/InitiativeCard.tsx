@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import StatusBadge from './StatusBadge';
 import { Initiative } from '@/lib/api';
+import { MarkdownDisplay } from './MarkdownDisplay';
 
 interface InitiativeCardProps {
   initiative: Initiative;
@@ -15,9 +16,13 @@ export default function InitiativeCard({ initiative }: InitiativeCardProps) {
           <StatusBadge status={initiative.status} type="initiative" />
         </div>
 
-        <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
-          {initiative.description || 'No description'}
-        </p>
+        <div className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
+          {initiative.description ? (
+            <MarkdownDisplay content={initiative.description} />
+          ) : (
+            <span className="text-gray-400 italic">No description</span>
+          )}
+        </div>
 
         <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mt-4">
           <div>

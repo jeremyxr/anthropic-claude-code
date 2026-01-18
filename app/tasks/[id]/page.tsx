@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, Deliverable, Milestone, Project, Initiative, TeamMember, Comment } from '@/lib/api';
 import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
+import { MarkdownDisplay } from '@/components/MarkdownDisplay';
 import { useUser } from '@/lib/user-context';
 
 export default function TaskDetailPage() {
@@ -410,7 +411,9 @@ export default function TaskDetailPage() {
                   value={task.description || ''}
                   onSave={(value) => updateTaskField('description', value)}
                   multiline
-                  placeholder="Add a description..."
+                  markdown
+                  userId={currentUser?.id}
+                  placeholder="Add a description (supports markdown)..."
                   displayClassName="text-sm"
                 />
               </div>
@@ -491,9 +494,9 @@ export default function TaskDetailPage() {
                                 })}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                              {comment.content}
-                            </p>
+                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                              <MarkdownDisplay content={comment.content} />
+                            </div>
                             <button
                               onClick={() => handleReply(comment)}
                               className="mt-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
@@ -525,9 +528,9 @@ export default function TaskDetailPage() {
                                       })}
                                     </span>
                                   </div>
-                                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                    {reply.content}
-                                  </p>
+                                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                                    <MarkdownDisplay content={reply.content} />
+                                  </div>
                                   <button
                                     onClick={() => handleReply(reply)}
                                     className="mt-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"

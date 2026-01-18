@@ -1,23 +1,29 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { MarkdownDisplay } from './MarkdownDisplay';
+import { MarkdownEditor } from './MarkdownEditor';
 
 interface InlineEditProps {
   value: string;
   onSave: (value: string) => Promise<void>;
   multiline?: boolean;
+  markdown?: boolean;
   placeholder?: string;
   className?: string;
   displayClassName?: string;
+  userId?: string; // Required for image uploads in markdown mode
 }
 
 export function InlineEdit({
   value,
   onSave,
   multiline = false,
+  markdown = false,
   placeholder = 'Click to edit',
   className = '',
-  displayClassName = ''
+  displayClassName = '',
+  userId
 }: InlineEditProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -75,6 +81,24 @@ export function InlineEdit({
   };
 
   if (isEditing) {
+    // Markdown editing mode with live preview
+    if (markdown) {
+      return (
+        <div className="relative">
+          <MarkdownEditor
+            value={editValue}
+            onChange={setEditValue}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            placeholder={placeholder}
+            userId={userId}
+            minHeight="300px"
+          />
+        </div>
+      );
+    }
+
+    // Regular multiline editing mode
     if (multiline) {
       return (
         <div className="relative">
@@ -111,13 +135,20 @@ export function InlineEdit({
     );
   }
 
+  // Display mode
   return (
     <div
       onClick={() => setIsEditing(true)}
       className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded px-1 -mx-1 transition-colors ${displayClassName}`}
       title="Click to edit"
     >
-      {value || <span className="text-gray-400 italic">{placeholder}</span>}
+      {markdown && value ? (
+        <MarkdownDisplay content={value} />
+      ) : value ? (
+        value
+      ) : (
+        <span className="text-gray-400 italic">{placeholder}</span>
+      )}
     </div>
   );
 }

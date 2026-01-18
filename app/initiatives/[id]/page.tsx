@@ -221,7 +221,9 @@ export default function InitiativeDetailPage() {
                   value={initiative.description}
                   onSave={(value) => updateInitiativeField('description', value)}
                   multiline
-                  placeholder="Add a description"
+                  markdown
+                  userId={currentUser?.id}
+                  placeholder="Add a description (supports markdown)"
                   className="text-sm"
                   displayClassName="text-sm"
                 />
@@ -327,7 +329,9 @@ export default function InitiativeDetailPage() {
                               value={project.description || ''}
                               onSave={(value) => updateProjectField(project.id, 'description', value)}
                               multiline
-                              placeholder="Add a description"
+                              markdown
+                              userId={currentUser?.id}
+                              placeholder="Add a description (supports markdown)"
                               displayClassName="text-xs"
                             />
                           </div>

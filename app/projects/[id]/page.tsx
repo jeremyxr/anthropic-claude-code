@@ -328,7 +328,9 @@ export default function ProjectDetailPage() {
                     value={project.description || ''}
                     onSave={(value) => updateProjectField('description', value)}
                     multiline
-                    placeholder="Add a description"
+                    markdown
+                    userId={currentUser?.id}
+                    placeholder="Add a description (supports markdown)"
                     className="text-sm"
                     displayClassName="text-sm"
                   />
@@ -519,7 +521,9 @@ export default function ProjectDetailPage() {
                                               value={task.description || ''}
                                               onSave={(value) => updateTaskField(task.id, 'description', value)}
                                               multiline
-                                              placeholder="Add a description"
+                                              markdown
+                                              userId={currentUser?.id}
+                                              placeholder="Add a description (supports markdown)"
                                               displayClassName="text-xs"
                                             />
                                           </div>
