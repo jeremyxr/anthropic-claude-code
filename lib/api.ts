@@ -94,9 +94,11 @@ export interface Comment {
   userId: string;
   content: string;
   mentions: string[];
+  parentCommentId: string | null;
   createdAt: string;
   updatedAt: string;
   user?: User;
+  replies?: Comment[];
 }
 
 export interface Notification {
@@ -618,6 +620,7 @@ export const api = {
 
   // Comments
   getComments: async (deliverableId: string): Promise<Comment[]> => {
+    // Fetch all comments for the deliverable
     const { data, error } = await supabase
       .from('comments')
       .select(`
@@ -628,7 +631,31 @@ export const api = {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
-    return toCamelCase(data) || [];
+
+    const allComments = toCamelCase(data) || [];
+
+    // Organize comments into a hierarchical structure
+    // Top-level comments (parent_comment_id is null) with nested replies
+    const topLevelComments = allComments.filter((c: Comment) => !c.parentCommentId);
+    const repliesMap = new Map<string, Comment[]>();
+
+    // Group replies by their parent comment ID
+    allComments
+      .filter((c: Comment) => c.parentCommentId)
+      .forEach((reply: Comment) => {
+        const parentId = reply.parentCommentId!;
+        if (!repliesMap.has(parentId)) {
+          repliesMap.set(parentId, []);
+        }
+        repliesMap.get(parentId)!.push(reply);
+      });
+
+    // Attach replies to their parent comments
+    topLevelComments.forEach((comment: Comment) => {
+      comment.replies = repliesMap.get(comment.id) || [];
+    });
+
+    return topLevelComments;
   },
 
   createComment: async (data: Partial<Comment>): Promise<Comment> => {

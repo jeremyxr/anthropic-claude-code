@@ -24,6 +24,8 @@ export default function TaskDetailPage() {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionPosition, setMentionPosition] = useState(0);
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyingToParentId, setReplyingToParentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -184,6 +186,18 @@ export default function TaskDetailPage() {
     return mentions;
   };
 
+  const handleReply = (comment: Comment) => {
+    // If replying to a reply, use the parent's ID instead (maintain 1 layer only)
+    const parentId = comment.parentCommentId || comment.id;
+    setReplyingToParentId(parentId);
+    setReplyingToCommentId(comment.id);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingToCommentId(null);
+    setReplyingToParentId(null);
+  };
+
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !newComment.trim()) return;
@@ -192,12 +206,13 @@ export default function TaskDetailPage() {
     try {
       const mentions = extractMentions(newComment);
 
-      // Create the comment
+      // Create the comment (with parentCommentId if replying)
       const comment = await api.createComment({
         deliverableId: id,
         userId: currentUser.id,
         content: newComment,
         mentions,
+        parentCommentId: replyingToParentId,
       });
 
       // Create notifications for mentioned users
@@ -222,6 +237,8 @@ export default function TaskDetailPage() {
       const taskComments = await api.getComments(id);
       setComments(taskComments);
       setNewComment('');
+      setReplyingToCommentId(null);
+      setReplyingToParentId(null);
     } catch (err: any) {
       console.error('Failed to submit comment:', err);
       if (err.code === 'PGRST205') {
@@ -454,39 +471,101 @@ export default function TaskDetailPage() {
                   {/* Existing Comments */}
                   <div className="space-y-4 mb-4">
                     {comments.map((comment) => (
-                      <div key={comment.id} className="flex items-start space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                          {comment.user?.name?.charAt(0).toUpperCase() || '?'}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              {comment.user?.name || 'Unknown'}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(comment.createdAt).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              })}
-                            </span>
+                      <div key={comment.id}>
+                        {/* Top-level comment */}
+                        <div className="flex items-start space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                            {comment.user?.name?.charAt(0).toUpperCase() || '?'}
                           </div>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                            {comment.content}
-                          </p>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                {comment.user?.name || 'Unknown'}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {new Date(comment.createdAt).toLocaleString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                              {comment.content}
+                            </p>
+                            <button
+                              onClick={() => handleReply(comment)}
+                              className="mt-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                            >
+                              Reply
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Replies (nested) */}
+                        {comment.replies && comment.replies.length > 0 && (
+                          <div className="ml-11 mt-3 space-y-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                            {comment.replies.map((reply) => (
+                              <div key={reply.id} className="flex items-start space-x-3">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                                  {reply.user?.name?.charAt(0).toUpperCase() || '?'}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {reply.user?.name || 'Unknown'}
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {new Date(reply.createdAt).toLocaleString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                    {reply.content}
+                                  </p>
+                                  <button
+                                    onClick={() => handleReply(reply)}
+                                    className="mt-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                  >
+                                    Reply
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
 
                   {/* Add Comment Form */}
                   <form onSubmit={handleSubmitComment}>
+                    {/* Reply indicator */}
+                    {replyingToCommentId && (
+                      <div className="mb-2 flex items-center justify-between px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-xs">
+                        <span className="text-blue-700 dark:text-blue-300">
+                          Replying to {comments.find(c => c.id === replyingToCommentId || c.replies?.find(r => r.id === replyingToCommentId))?.user?.name ||
+                          comments.flatMap(c => c.replies || []).find(r => r.id === replyingToCommentId)?.user?.name || 'comment'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCancelReply}
+                          className="text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                     <div className="relative">
                       <textarea
                         value={newComment}
                         onChange={handleCommentChange}
-                        placeholder="Leave a comment... (use @ to mention someone)"
+                        placeholder={replyingToCommentId ? "Write a reply... (use @ to mention someone)" : "Leave a comment... (use @ to mention someone)"}
                         rows={3}
                         className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                         disabled={!currentUser}
