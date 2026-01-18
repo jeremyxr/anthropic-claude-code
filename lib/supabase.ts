@@ -40,7 +40,7 @@ export type Project = {
   name: string;
   description: string;
   status: 'not-started' | 'in-progress' | 'completed' | 'on-hold';
-  lead: string | null;
+  assignee: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -346,12 +346,19 @@ export default function ProjectDetailPage() {
                   />
                 </span>
                 <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                  👤 {getOwnerName(project.lead) || <InlineEdit
-                    value=""
-                    onSave={(value) => updateProjectField('lead', value || null)}
-                    placeholder="No lead"
-                    displayClassName="inline text-gray-400 italic"
-                  />}
+                  👤 <InlineSelect
+                    value={project.assignee || ''}
+                    options={[
+                      { value: '', label: 'No assignee' },
+                      ...teamMembers.map(m => ({
+                        value: m.userId,
+                        label: m.user?.name || m.user?.email || 'Unknown'
+                      }))
+                    ]}
+                    onSave={(value) => updateProjectField('assignee', value || null)}
+                    getDisplayValue={(value) => getOwnerName(value || null) || 'No assignee'}
+                    displayClassName="inline"
+                  />
                 </span>
                 <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                   🎯 <InlineDate
@@ -546,12 +553,19 @@ export default function ProjectDetailPage() {
                                           <div>
                                             <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Assignee:</span>
                                             <span className="text-xs">
-                                              {getOwnerName(task.assignee) || <InlineEdit
-                                                value=""
+                                              <InlineSelect
+                                                value={task.assignee || ''}
+                                                options={[
+                                                  { value: '', label: 'No assignee' },
+                                                  ...teamMembers.map(m => ({
+                                                    value: m.userId,
+                                                    label: m.user?.name || m.user?.email || 'Unknown'
+                                                  }))
+                                                ]}
                                                 onSave={(value) => updateTaskField(task.id, 'assignee', value || null)}
-                                                placeholder="No assignee"
-                                                displayClassName="inline text-gray-400 italic text-xs"
-                                              />}
+                                                getDisplayValue={(value) => getOwnerName(value || null) || 'No assignee'}
+                                                displayClassName="inline text-xs"
+                                              />
                                             </span>
                                           </div>
 
@@ -662,14 +676,20 @@ export default function ProjectDetailPage() {
                 </span>
               </div>
               <div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Lead</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assignee</div>
                 <div className="text-sm text-gray-900 dark:text-white">
-                  {getOwnerName(project.lead) || <InlineEdit
-                    value=""
-                    onSave={(value) => updateProjectField('lead', value || null)}
-                    placeholder="No lead"
-                    displayClassName="text-sm text-gray-400 italic"
-                  />}
+                  <InlineSelect
+                    value={project.assignee || ''}
+                    options={[
+                      { value: '', label: 'No assignee' },
+                      ...teamMembers.map(m => ({
+                        value: m.userId,
+                        label: m.user?.name || m.user?.email || 'Unknown'
+                      }))
+                    ]}
+                    onSave={(value) => updateProjectField('assignee', value || null)}
+                    getDisplayValue={(value) => getOwnerName(value || null) || 'No assignee'}
+                  />
                 </div>
               </div>
               <div>

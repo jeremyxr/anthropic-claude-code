@@ -23,7 +23,7 @@ export default function InitiativeDetailPage() {
     name: '',
     description: '',
     status: 'not-started' as const,
-    lead: '',
+    assignee: '',
     targetDeliveryDate: '',
   });
 
@@ -101,7 +101,7 @@ export default function InitiativeDetailPage() {
         name: '',
         description: '',
         status: 'not-started',
-        lead: '',
+        assignee: '',
         targetDeliveryDate: '',
       });
       loadData();
@@ -361,14 +361,21 @@ export default function InitiativeDetailPage() {
                           displayClassName="font-medium"
                         />
                       </span>
-                      {(project.lead || true) && (
+                      {(project.assignee || true) && (
                         <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                          👤 {getOwnerName(project.lead) || <InlineEdit
-                            value=""
-                            onSave={(value) => updateProjectField(project.id, 'lead', value || null)}
-                            placeholder="No lead"
-                            displayClassName="inline text-gray-400 italic"
-                          />}
+                          👤 <InlineSelect
+                            value={project.assignee || ''}
+                            options={[
+                              { value: '', label: 'No assignee' },
+                              ...teamMembers.map(m => ({
+                                value: m.userId,
+                                label: m.user?.name || m.user?.email || 'Unknown'
+                              }))
+                            ]}
+                            onSave={(value) => updateProjectField(project.id, 'assignee', value || null)}
+                            getDisplayValue={(value) => getOwnerName(value || null) || 'No assignee'}
+                            displayClassName="inline text-xs"
+                          />
                         </span>
                       )}
                       <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -452,14 +459,14 @@ export default function InitiativeDetailPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                      Lead
+                      Assignee
                     </label>
                     <select
-                      value={projectFormData.lead}
-                      onChange={(e) => setProjectFormData({ ...projectFormData, lead: e.target.value })}
+                      value={projectFormData.assignee}
+                      onChange={(e) => setProjectFormData({ ...projectFormData, assignee: e.target.value })}
                       className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                     >
-                      <option value="">No lead</option>
+                      <option value="">No assignee</option>
                       {teamMembers.map((member) => (
                         <option key={member.userId} value={member.userId}>
                           {member.user?.name || member.user?.email || 'Unknown'}
