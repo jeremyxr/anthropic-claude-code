@@ -117,7 +117,7 @@ projects
 ├── name (text)
 ├── description (text)
 ├── status (enum: not-started, in-progress, completed, on-hold)
-├── lead (text)
+├── assignee (text)
 ├── created_at (timestamp)
 └── updated_at (timestamp)
 

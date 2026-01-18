@@ -20,7 +20,7 @@ export interface Project {
   description: string;
   initiativeId: string;
   status: 'not-started' | 'in-progress' | 'completed' | 'on-hold';
-  lead: string | null;
+  assignee: string | null;
   targetDeliveryDate: string | null;
   createdBy?: string;
   updatedBy?: string;
