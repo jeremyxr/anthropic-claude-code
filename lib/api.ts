@@ -160,6 +160,15 @@ export interface TeamPriority {
   updatedAt: string;
 }
 
+export interface Favorite {
+  id: string;
+  userId: string;
+  entityType: 'initiative' | 'project' | 'milestone' | 'deliverable';
+  entityId: string;
+  teamId: string | null;
+  createdAt: string;
+}
+
 // Helper functions to convert between snake_case (DB) and camelCase (Frontend)
 const toCamelCase = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -980,5 +989,65 @@ export const api = {
     // This would sync from JIRA
     // Implementation depends on your JIRA integration setup
     throw new Error('JIRA sync not yet implemented with Supabase');
+  },
+
+  // Favorites
+  getFavorites: async (userId: string): Promise<Favorite[]> => {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  getFavoritesByType: async (userId: string, entityType: 'initiative' | 'project' | 'milestone' | 'deliverable'): Promise<Favorite[]> => {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('entity_type', entityType)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  isFavorite: async (userId: string, entityType: string, entityId: string): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('entity_type', entityType)
+      .eq('entity_id', entityId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return !!data;
+  },
+
+  addFavorite: async (data: Partial<Favorite>): Promise<Favorite> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('favorites')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  removeFavorite: async (userId: string, entityType: string, entityId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', userId)
+      .eq('entity_type', entityType)
+      .eq('entity_id', entityId);
+
+    if (error) throw error;
   },
 };
