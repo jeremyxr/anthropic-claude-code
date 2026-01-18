@@ -358,6 +358,17 @@ export const api = {
     return toCamelCase(data) || [];
   },
 
+  getMilestone: async (id: string): Promise<Milestone> => {
+    const { data, error } = await supabase
+      .from('milestones')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(data);
+  },
+
   createMilestone: async (data: Partial<Milestone>): Promise<Milestone> => {
     const snakeData = toSnakeCase(data);
     const { data: result, error } = await supabase

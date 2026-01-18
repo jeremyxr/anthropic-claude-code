@@ -48,9 +48,8 @@ export default function Sidebar() {
                 name = project.name;
                 break;
               case 'milestone':
-                // Milestones don't have a direct get method, so we'll need to handle this
-                // For now, we'll leave it as is and fetch it differently if needed
-                name = 'Milestone';
+                const milestone = await api.getMilestone(fav.entityId);
+                name = milestone.name;
                 break;
               case 'deliverable':
                 const deliverable = await api.getDeliverable(fav.entityId);
