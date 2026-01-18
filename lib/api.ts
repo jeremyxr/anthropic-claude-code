@@ -704,7 +704,7 @@ export const api = {
       .from('notifications')
       .select(`
         *,
-        user:users(*),
+        user:users!notifications_user_id_fkey(*),
         related_user:users!notifications_related_user_id_fkey(*),
         related_deliverable:deliverables(*),
         related_comment:comments(*, user:users(*))
@@ -721,7 +721,7 @@ export const api = {
       .from('notifications')
       .select(`
         *,
-        user:users(*),
+        user:users!notifications_user_id_fkey(*),
         related_user:users!notifications_related_user_id_fkey(*),
         related_deliverable:deliverables(*),
         related_comment:comments(*, user:users(*))
