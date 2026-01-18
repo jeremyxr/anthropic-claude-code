@@ -2,16 +2,124 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/lib/user-context';
+import { api, Favorite, Initiative, Project, Milestone, Deliverable } from '@/lib/api';
+
+interface FavoriteWithEntity extends Favorite {
+  name?: string;
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { currentUser, currentTeam } = useUser();
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [favoritesOpen, setFavoritesOpen] = useState(true);
+  const [favorites, setFavorites] = useState<FavoriteWithEntity[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
 
   const isActive = (path: string) => pathname === path;
+
+  useEffect(() => {
+    if (currentUser) {
+      loadFavorites();
+    }
+  }, [currentUser]);
+
+  const loadFavorites = async () => {
+    if (!currentUser) return;
+
+    try {
+      setLoadingFavorites(true);
+      const favs = await api.getFavorites(currentUser.id);
+
+      // Fetch entity details for each favorite to get names
+      const favoritesWithNames = await Promise.all(
+        favs.map(async (fav) => {
+          try {
+            let name = 'Unknown';
+            switch (fav.entityType) {
+              case 'initiative':
+                const initiative = await api.getInitiative(fav.entityId);
+                name = initiative.name;
+                break;
+              case 'project':
+                const project = await api.getProject(fav.entityId);
+                name = project.name;
+                break;
+              case 'milestone':
+                // Milestones don't have a direct get method, so we'll need to handle this
+                // For now, we'll leave it as is and fetch it differently if needed
+                name = 'Milestone';
+                break;
+              case 'deliverable':
+                const deliverable = await api.getDeliverable(fav.entityId);
+                name = deliverable.name;
+                break;
+            }
+            return { ...fav, name };
+          } catch (err) {
+            console.error(`Failed to load entity details for favorite ${fav.id}:`, err);
+            return { ...fav, name: 'Unknown' };
+          }
+        })
+      );
+
+      setFavorites(favoritesWithNames);
+    } catch (err) {
+      console.error('Failed to load favorites:', err);
+    } finally {
+      setLoadingFavorites(false);
+    }
+  };
+
+  const getFavoriteIcon = (entityType: string) => {
+    switch (entityType) {
+      case 'initiative':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        );
+      case 'project':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+        );
+      case 'milestone':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      case 'deliverable':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const getFavoriteLink = (fav: FavoriteWithEntity) => {
+    switch (fav.entityType) {
+      case 'initiative':
+        return `/initiatives/${fav.entityId}`;
+      case 'project':
+        return `/projects/${fav.entityId}`;
+      case 'milestone':
+        // Milestones don't have their own page, so we can't link directly
+        // We would need to know the project ID to link properly
+        return '#';
+      case 'deliverable':
+        return `/tasks/${fav.entityId}`;
+      default:
+        return '#';
+    }
+  };
 
   return (
     <aside className="w-60 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-screen flex flex-col overflow-hidden">
@@ -85,6 +193,51 @@ export default function Sidebar() {
             <span>My initiatives</span>
           </Link>
         </div>
+
+        {/* Favorites Section */}
+        {currentUser && (
+          <div className="px-2 mb-4">
+            <button
+              onClick={() => setFavoritesOpen(!favoritesOpen)}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <span className="font-medium">Favorites</span>
+              <svg
+                className={`w-3 h-3 transition-transform ${favoritesOpen ? 'rotate-0' : '-rotate-90'}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {favoritesOpen && (
+              <div className="mt-1 space-y-0.5">
+                {loadingFavorites ? (
+                  <div className="px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Loading...
+                  </div>
+                ) : favorites.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    No favorites yet
+                  </div>
+                ) : (
+                  favorites.map((fav) => (
+                    <Link
+                      key={fav.id}
+                      href={getFavoriteLink(fav)}
+                      className="flex items-center space-x-2 px-2 py-1.5 rounded text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      {getFavoriteIcon(fav.entityType)}
+                      <span className="truncate">{fav.name || 'Unknown'}</span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 

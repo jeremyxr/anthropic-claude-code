@@ -8,6 +8,7 @@ import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
 import { MarkdownDisplay } from '@/components/MarkdownDisplay';
 import { useUser } from '@/lib/user-context';
 import { useSettings } from '@/lib/settings-context';
+import { FavoriteStar } from '@/components/FavoriteStar';
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -361,20 +362,23 @@ export default function TaskDetailPage() {
     <div className="h-screen flex flex-col bg-white dark:bg-gray-950">
       {/* Header with breadcrumb */}
       <div className="border-b border-gray-200 dark:border-gray-800 px-8 py-3">
-        <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-          <Link href="/initiatives" className="hover:text-gray-900 dark:hover:text-gray-100">
-            Initiatives
-          </Link>
-          <span>/</span>
-          <Link href={`/initiatives/${initiative.id}`} className="hover:text-gray-900 dark:hover:text-gray-100">
-            {initiative.name}
-          </Link>
-          <span>/</span>
-          <Link href={`/projects/${project.id}`} className="hover:text-gray-900 dark:hover:text-gray-100">
-            {project.name}
-          </Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-white font-medium">{task.name}</span>
+        <div className="flex items-center space-x-2">
+          <FavoriteStar entityType="deliverable" entityId={id} />
+          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+            <Link href="/initiatives" className="hover:text-gray-900 dark:hover:text-gray-100">
+              Initiatives
+            </Link>
+            <span>/</span>
+            <Link href={`/initiatives/${initiative.id}`} className="hover:text-gray-900 dark:hover:text-gray-100">
+              {initiative.name}
+            </Link>
+            <span>/</span>
+            <Link href={`/projects/${project.id}`} className="hover:text-gray-900 dark:hover:text-gray-100">
+              {project.name}
+            </Link>
+            <span>/</span>
+            <span className="text-gray-900 dark:text-white font-medium">{task.name}</span>
+          </div>
         </div>
       </div>
 
