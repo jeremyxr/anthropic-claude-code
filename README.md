@@ -16,7 +16,7 @@ A comprehensive product development management application built on top of JIRA,
   - Create JIRA issues directly from deliverables
   - Support for JIRA Cloud REST API
 
-- **Interactive Dashboard**: View all work at a glance with status tracking and progress metrics
+- **My Issues View**: View all your assigned work at a glance with status tracking and progress metrics
 
 - **Modern UI**: Built with Next.js, React, and Tailwind CSS for a responsive, beautiful interface
 
@@ -209,7 +209,7 @@ curl -X POST http://localhost:3001/api/jira/create-issue \
 ```
 .
 ├── app/                          # Next.js app directory
-│   ├── dashboard/                # Dashboard page
+│   ├── dashboard/                # My Issues page (inbox)
 │   ├── initiatives/              # Initiatives pages
 │   │   └── [id]/                 # Individual initiative detail page
 │   ├── globals.css               # Global styles
