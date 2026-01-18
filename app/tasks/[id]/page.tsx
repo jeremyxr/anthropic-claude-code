@@ -52,9 +52,15 @@ export default function TaskDetailPage() {
         setTeamMembers(members);
       }
 
-      // Load comments
-      const taskComments = await api.getComments(id);
-      setComments(taskComments);
+      // Load comments - handle gracefully if table doesn't exist
+      try {
+        const taskComments = await api.getComments(id);
+        setComments(taskComments);
+      } catch (commentErr: any) {
+        console.warn('Failed to load comments:', commentErr);
+        // Set empty comments array if table doesn't exist yet
+        setComments([]);
+      }
     } catch (err: any) {
       console.error('Failed to load task:', err);
 

@@ -23,9 +23,9 @@ A comprehensive product development management application built on top of JIRA,
 ## Tech Stack
 
 - **Frontend**: Next.js 14 with React 19 and TypeScript
-- **Backend**: Node.js with Express
+- **Database**: Supabase (PostgreSQL)
+- **Backend**: Node.js with Express (legacy)
 - **Styling**: Tailwind CSS
-- **Data Storage**: JSON file-based storage (easily replaceable with a database)
 - **API Integration**: JIRA Cloud REST API
 
 ## Getting Started
@@ -54,7 +54,12 @@ A comprehensive product development management application built on top of JIRA,
    cp .env.example .env
    ```
 
-4. Configure your `.env` file with JIRA credentials (optional):
+4. Apply database migrations to Supabase:
+   - See [MIGRATIONS.md](./MIGRATIONS.md) for detailed instructions
+   - You must apply all migrations for the app to function correctly
+   - Missing migrations will cause errors when loading certain features
+
+5. Configure your `.env` file with JIRA credentials (optional):
    ```
    JIRA_HOST=your-domain.atlassian.net
    JIRA_EMAIL=your-email@example.com
