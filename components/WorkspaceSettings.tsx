@@ -71,8 +71,13 @@ export default function WorkspaceSettings() {
 
   const handleSaveStatus = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTeam) return;
+    if (!currentTeam) {
+      console.error('No current team available');
+      alert('Error: No team selected. Please refresh the page.');
+      return;
+    }
 
+    console.log('Saving status:', { teamId: currentTeam.id, entityType: selectedEntityType, statusForm });
     setIsLoading(true);
     try {
       if (editingStatus) {
@@ -88,7 +93,8 @@ export default function WorkspaceSettings() {
       setShowStatusModal(false);
     } catch (error) {
       console.error('Failed to save status:', error);
-      alert('Failed to save status');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to save status: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -129,8 +135,13 @@ export default function WorkspaceSettings() {
 
   const handleSaveLabel = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTeam) return;
+    if (!currentTeam) {
+      console.error('No current team available');
+      alert('Error: No team selected. Please refresh the page.');
+      return;
+    }
 
+    console.log('Saving label:', { teamId: currentTeam.id, labelForm });
     setIsLoading(true);
     try {
       if (editingLabel) {
@@ -145,7 +156,8 @@ export default function WorkspaceSettings() {
       setShowLabelModal(false);
     } catch (error) {
       console.error('Failed to save label:', error);
-      alert('Failed to save label');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to save label: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -188,8 +200,13 @@ export default function WorkspaceSettings() {
 
   const handleSavePriority = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTeam) return;
+    if (!currentTeam) {
+      console.error('No current team available');
+      alert('Error: No team selected. Please refresh the page.');
+      return;
+    }
 
+    console.log('Saving priority:', { teamId: currentTeam.id, priorityForm });
     setIsLoading(true);
     try {
       if (editingPriority) {
@@ -204,7 +221,8 @@ export default function WorkspaceSettings() {
       setShowPriorityModal(false);
     } catch (error) {
       console.error('Failed to save priority:', error);
-      alert('Failed to save priority');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to save priority: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
