@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, Deliverable, Milestone, Project, Initiative, TeamMember } from '@/lib/api';
+import { api, Deliverable, Milestone, Project, Initiative, TeamMember, Comment } from '@/lib/api';
 import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
 import { useUser } from '@/lib/user-context';
 
@@ -18,6 +18,12 @@ export default function TaskDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [initiative, setInitiative] = useState<Initiative | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionPosition, setMentionPosition] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -45,6 +51,10 @@ export default function TaskDetailPage() {
         const members = await api.getTeamMembers(currentTeam.id);
         setTeamMembers(members);
       }
+
+      // Load comments
+      const taskComments = await api.getComments(id);
+      setComments(taskComments);
     } catch (err: any) {
       console.error('Failed to load task:', err);
 
@@ -110,6 +120,100 @@ export default function TaskDetailPage() {
       } else {
         alert('Failed to delete task. Please try again.');
       }
+    }
+  };
+
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setNewComment(value);
+
+    // Check for @ mentions
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
+      // Only show mentions if there's no space after @ and @ is either at start or preceded by space
+      if (!textAfterAt.includes(' ') && (lastAtIndex === 0 || value[lastAtIndex - 1] === ' ')) {
+        setMentionSearch(textAfterAt);
+        setMentionPosition(lastAtIndex);
+        setShowMentions(true);
+        return;
+      }
+    }
+    setShowMentions(false);
+  };
+
+  const handleMentionSelect = (member: TeamMember) => {
+    const beforeMention = newComment.slice(0, mentionPosition);
+    const afterMention = newComment.slice(mentionPosition + mentionSearch.length + 1);
+    setNewComment(`${beforeMention}@${member.user?.name}${afterMention}`);
+    setShowMentions(false);
+  };
+
+  const extractMentions = (text: string): string[] => {
+    const mentionRegex = /@(\w+(?:\s+\w+)*)/g;
+    const mentions: string[] = [];
+    let match;
+
+    while ((match = mentionRegex.exec(text)) !== null) {
+      const mentionedName = match[1];
+      // Find user ID by name
+      const member = teamMembers.find(m =>
+        m.user?.name.toLowerCase() === mentionedName.toLowerCase()
+      );
+      if (member) {
+        mentions.push(member.userId);
+      }
+    }
+
+    return mentions;
+  };
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !newComment.trim()) return;
+
+    setIsSubmittingComment(true);
+    try {
+      const mentions = extractMentions(newComment);
+
+      // Create the comment
+      const comment = await api.createComment({
+        deliverableId: id,
+        userId: currentUser.id,
+        content: newComment,
+        mentions,
+      });
+
+      // Create notifications for mentioned users
+      if (mentions.length > 0) {
+        await Promise.all(
+          mentions.map(userId =>
+            api.createNotification({
+              userId,
+              type: 'mention',
+              title: `${currentUser.name} mentioned you in a comment`,
+              message: newComment,
+              relatedCommentId: comment.id,
+              relatedDeliverableId: id,
+              relatedUserId: currentUser.id,
+              isRead: false,
+            })
+          )
+        );
+      }
+
+      // Reload comments
+      const taskComments = await api.getComments(id);
+      setComments(taskComments);
+      setNewComment('');
+    } catch (err) {
+      console.error('Failed to submit comment:', err);
+      alert('Failed to submit comment. Please try again.');
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -324,17 +428,92 @@ export default function TaskDetailPage() {
                   </div>
                 )}
 
-                {/* Placeholder for comments */}
+                {/* Comments Section */}
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                  <textarea
-                    placeholder="Leave a comment..."
-                    rows={3}
-                    className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                    disabled
-                  />
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                    Comments feature coming soon
-                  </p>
+                  <h4 className="text-xs font-semibold text-gray-900 dark:text-white mb-3">
+                    Comments
+                  </h4>
+
+                  {/* Existing Comments */}
+                  <div className="space-y-4 mb-4">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="flex items-start space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                          {comment.user?.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {comment.user?.name || 'Unknown'}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(comment.createdAt).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                            {comment.content}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Comment Form */}
+                  <form onSubmit={handleSubmitComment}>
+                    <div className="relative">
+                      <textarea
+                        value={newComment}
+                        onChange={handleCommentChange}
+                        placeholder="Leave a comment... (use @ to mention someone)"
+                        rows={3}
+                        className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                        disabled={!currentUser}
+                      />
+
+                      {/* Mention Dropdown */}
+                      {showMentions && (
+                        <div className="absolute bottom-full mb-1 left-0 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg max-h-48 overflow-y-auto z-10">
+                          {teamMembers
+                            .filter(m =>
+                              m.user?.name.toLowerCase().includes(mentionSearch.toLowerCase())
+                            )
+                            .map((member) => (
+                              <button
+                                key={member.id}
+                                type="button"
+                                onClick={() => handleMentionSelect(member)}
+                                className="w-full flex items-center space-x-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                              >
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium">
+                                  {member.user?.name?.charAt(0).toUpperCase() || '?'}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {member.user?.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {member.user?.email}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={!currentUser || !newComment.trim() || isSubmittingComment}
+                      className="mt-2 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmittingComment ? 'Posting...' : 'Comment'}
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>
