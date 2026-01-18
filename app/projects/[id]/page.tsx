@@ -684,9 +684,10 @@ export default function ProjectDetailPage() {
             {activeTab === 'tasks' && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">All Tasks</h3>
-                {Object.entries(deliverables).flatMap(([milestoneId, tasks]) => {
-                  const milestone = milestones.find(m => m.id === milestoneId);
-                  return tasks.map((task) => {
+                {(() => {
+                  const allTasks = Object.entries(deliverables).flatMap(([milestoneId, tasks]) => {
+                    const milestone = milestones.find(m => m.id === milestoneId);
+                    return tasks.map((task) => {
                     const isExpanded = expandedTasks.has(task.id);
                     return (
                       <div key={task.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 mb-3">
@@ -849,21 +850,24 @@ export default function ProjectDetailPage() {
                         </div>
                       </div>
                     );
+                    });
                   });
-                }).length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">No tasks yet</p>
-                    <button
-                      onClick={() => {
-                        setActiveTab('overview');
-                        setShowMilestoneModal(true);
-                      }}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
-                    >
-                      <span>Create a milestone first</span>
-                    </button>
-                  </div>
-                ) : null}
+
+                  return allTasks.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">No tasks yet</p>
+                      <button
+                        onClick={() => {
+                          setActiveTab('overview');
+                          setShowMilestoneModal(true);
+                        }}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-100"
+                      >
+                        <span>Create a milestone first</span>
+                      </button>
+                    </div>
+                  ) : allTasks;
+                })()}
               </div>
             )}
           </div>
