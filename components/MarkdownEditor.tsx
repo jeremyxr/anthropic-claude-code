@@ -6,7 +6,7 @@ import { uploadImage } from '@/lib/imageUpload';
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
-  onSave?: () => void;
+  onSave?: () => void | Promise<void>;
   onCancel?: () => void;
   placeholder?: string;
   userId?: string;
@@ -124,9 +124,14 @@ export function MarkdownEditor({
         // If auto-saving, save before closing
         if (autoSave && onSave) {
           e.preventDefault();
-          onSave().then(() => {
+          const result = onSave();
+          if (result && typeof result.then === 'function') {
+            result.then(() => {
+              if (onCancel) onCancel();
+            });
+          } else {
             if (onCancel) onCancel();
-          });
+          }
         } else if (onCancel) {
           onCancel();
         }
