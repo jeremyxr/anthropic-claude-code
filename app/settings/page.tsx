@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@/lib/user-context';
 import { api, User, Team, TeamMember } from '@/lib/api';
+import WorkspaceSettings from '@/components/WorkspaceSettings';
 
 export default function SettingsPage() {
   const { currentUser, currentTeam, userTeams, setCurrentUser, setCurrentTeam, refreshUserTeams } = useUser();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'team'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'team' | 'workspace'>('profile');
   const [isLoading, setIsLoading] = useState(false);
 
   // Profile form state
@@ -340,6 +341,16 @@ export default function SettingsPage() {
             >
               Team
             </button>
+            <button
+              onClick={() => setActiveTab('workspace')}
+              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'workspace'
+                  ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Workspace
+            </button>
           </div>
         </div>
       </div>
@@ -407,7 +418,7 @@ export default function SettingsPage() {
               </button>
             </form>
           </div>
-        ) : (
+        ) : activeTab === 'team' ? (
           <div className="max-w-4xl">
             {/* Team Info */}
             <form onSubmit={handleUpdateTeam} className="space-y-6 mb-8">
@@ -517,7 +528,9 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-        )}
+        ) : activeTab === 'workspace' ? (
+          <WorkspaceSettings />
+        ) : null}
       </div>
 
       {/* Add Member Modal */}

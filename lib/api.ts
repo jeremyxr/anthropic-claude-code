@@ -7,6 +7,7 @@ export interface Initiative {
   status: 'planning' | 'active' | 'on-hold' | 'completed' | 'cancelled';
   targetDate: string | null;
   owner: string | null;
+  labels: string[];
   teamId?: string;
   createdBy?: string;
   updatedBy?: string;
@@ -21,7 +22,9 @@ export interface Project {
   initiativeId: string;
   status: 'not-started' | 'in-progress' | 'completed' | 'on-hold';
   assignee: string | null;
+  labels: string[];
   targetDeliveryDate: string | null;
+  teamId?: string;
   createdBy?: string;
   updatedBy?: string;
   createdAt: string;
@@ -35,6 +38,8 @@ export interface Milestone {
   projectId: string;
   status: 'not-started' | 'in-progress' | 'completed' | 'at-risk';
   dueDate: string | null;
+  labels: string[];
+  teamId?: string;
   createdBy?: string;
   updatedBy?: string;
   createdAt: string;
@@ -53,8 +58,9 @@ export interface Deliverable {
   dueDate: string | null;
   jiraIssueKey: string | null;
   jiraIssueId: string | null;
-  tags: string[];
+  labels: string[];
   customFields: Record<string, any>;
+  teamId?: string;
   createdBy?: string;
   updatedBy?: string;
   createdAt: string;
@@ -116,6 +122,42 @@ export interface Notification {
   relatedUser?: User;
   relatedDeliverable?: Deliverable;
   relatedComment?: Comment;
+}
+
+export interface TeamStatus {
+  id: string;
+  teamId: string;
+  entityType: 'initiative' | 'project' | 'milestone' | 'deliverable';
+  statusValue: string;
+  label: string;
+  color: string;
+  position: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamLabel {
+  id: string;
+  teamId: string;
+  name: string;
+  description: string | null;
+  color: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamPriority {
+  id: string;
+  teamId: string;
+  priorityValue: string;
+  label: string;
+  color: string;
+  position: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Helper functions to convert between snake_case (DB) and camelCase (Frontend)
@@ -772,6 +814,156 @@ export const api = {
     const { error } = await supabase
       .from('notifications')
       .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Team Statuses
+  getTeamStatuses: async (teamId: string, entityType?: 'initiative' | 'project' | 'milestone' | 'deliverable'): Promise<TeamStatus[]> => {
+    let query = supabase
+      .from('team_statuses')
+      .select('*')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+      .order('position', { ascending: true });
+
+    if (entityType) {
+      query = query.eq('entity_type', entityType);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  createTeamStatus: async (data: Partial<TeamStatus>): Promise<TeamStatus> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_statuses')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateTeamStatus: async (id: string, data: Partial<TeamStatus>): Promise<TeamStatus> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_statuses')
+      .update(snakeData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  deleteTeamStatus: async (id: string): Promise<void> => {
+    // Soft delete by setting is_active to false
+    const { error } = await supabase
+      .from('team_statuses')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Team Labels
+  getTeamLabels: async (teamId: string): Promise<TeamLabel[]> => {
+    const { data, error } = await supabase
+      .from('team_labels')
+      .select('*')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  createTeamLabel: async (data: Partial<TeamLabel>): Promise<TeamLabel> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_labels')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateTeamLabel: async (id: string, data: Partial<TeamLabel>): Promise<TeamLabel> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_labels')
+      .update(snakeData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  deleteTeamLabel: async (id: string): Promise<void> => {
+    // Soft delete by setting is_active to false
+    const { error } = await supabase
+      .from('team_labels')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Team Priorities
+  getTeamPriorities: async (teamId: string): Promise<TeamPriority[]> => {
+    const { data, error } = await supabase
+      .from('team_priorities')
+      .select('*')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+      .order('position', { ascending: true });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  createTeamPriority: async (data: Partial<TeamPriority>): Promise<TeamPriority> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_priorities')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateTeamPriority: async (id: string, data: Partial<TeamPriority>): Promise<TeamPriority> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('team_priorities')
+      .update(snakeData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  deleteTeamPriority: async (id: string): Promise<void> => {
+    // Soft delete by setting is_active to false
+    const { error } = await supabase
+      .from('team_priorities')
+      .update({ is_active: false })
       .eq('id', id);
 
     if (error) throw error;

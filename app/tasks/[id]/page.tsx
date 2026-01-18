@@ -7,12 +7,14 @@ import { api, Deliverable, Milestone, Project, Initiative, TeamMember, Comment }
 import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
 import { MarkdownDisplay } from '@/components/MarkdownDisplay';
 import { useUser } from '@/lib/user-context';
+import { useSettings } from '@/lib/settings-context';
 
 export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
   const { currentUser, currentTeam } = useUser();
+  const { getStatusesByEntity, priorities: teamPriorities } = useSettings();
 
   const [task, setTask] = useState<Deliverable | null>(null);
   const [milestone, setMilestone] = useState<Milestone | null>(null);
@@ -290,20 +292,9 @@ export default function TaskDetailPage() {
     return member?.user?.name || member?.user?.email || 'Unknown';
   };
 
-  const statusOptions = [
-    { value: 'todo', label: 'To Do' },
-    { value: 'in-progress', label: 'In Progress' },
-    { value: 'in-review', label: 'In Review' },
-    { value: 'done', label: 'Done' },
-    { value: 'blocked', label: 'Blocked' },
-  ];
-
-  const priorityOptions = [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-    { value: 'critical', label: 'Critical' },
-  ];
+  // Get options from centralized settings
+  const statusOptions = getStatusesByEntity('deliverable').map(s => ({ value: s.statusValue, label: s.label }));
+  const priorityOptions = teamPriorities.map(p => ({ value: p.priorityValue, label: p.label }));
 
   // Loading state
   if (loading) {
@@ -728,14 +719,14 @@ export default function TaskDetailPage() {
             {/* Tags */}
             <div>
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Labels</div>
-              {task.tags && task.tags.length > 0 ? (
+              {task.labels && task.labels.length > 0 ? (
                 <div className="flex flex-wrap gap-1">
-                  {task.tags.map((tag, idx) => (
+                  {task.labels.map((label, idx) => (
                     <span
                       key={idx}
                       className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded text-xs"
                     >
-                      {tag}
+                      {label}
                     </span>
                   ))}
                 </div>
