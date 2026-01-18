@@ -160,6 +160,17 @@ export interface TeamPriority {
   updatedAt: string;
 }
 
+export interface ProjectUpdate {
+  id: string;
+  projectId: string;
+  status: 'on-track' | 'at-risk' | 'off-track';
+  content: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: User;
+}
+
 // Helper functions to convert between snake_case (DB) and camelCase (Frontend)
 const toCamelCase = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -964,6 +975,61 @@ export const api = {
     const { error } = await supabase
       .from('team_priorities')
       .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Project Updates
+  getProjectUpdates: async (projectId: string): Promise<ProjectUpdate[]> => {
+    const { data, error } = await supabase
+      .from('project_updates')
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  createProjectUpdate: async (data: Partial<ProjectUpdate>): Promise<ProjectUpdate> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('project_updates')
+      .insert([snakeData])
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateProjectUpdate: async (id: string, data: Partial<ProjectUpdate>): Promise<ProjectUpdate> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('project_updates')
+      .update(snakeData)
+      .eq('id', id)
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  deleteProjectUpdate: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('project_updates')
+      .delete()
       .eq('id', id);
 
     if (error) throw error;
