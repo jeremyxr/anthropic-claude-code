@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, Notification } from '@/lib/api';
+import { MarkdownDisplay } from '@/components/MarkdownDisplay';
 import { useUser } from '@/lib/user-context';
 
 export default function InboxPage() {
@@ -260,9 +261,9 @@ export default function InboxPage() {
             <div className="flex-1 overflow-y-auto px-8 py-6">
               {selectedNotification.message && (
                 <div className="mb-6">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                    {selectedNotification.message}
-                  </p>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                    <MarkdownDisplay content={selectedNotification.message} />
+                  </div>
                 </div>
               )}
 
@@ -286,9 +287,9 @@ export default function InboxPage() {
                             {formatTimeAgo(selectedNotification.relatedComment.createdAt)}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                          {selectedNotification.relatedComment.content}
-                        </p>
+                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                          <MarkdownDisplay content={selectedNotification.relatedComment.content} />
+                        </div>
                       </div>
                     </div>
                   </div>
