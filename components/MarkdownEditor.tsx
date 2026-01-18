@@ -6,7 +6,7 @@ import { uploadImage } from '@/lib/imageUpload';
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
-  onSave?: () => void;
+  onSave?: () => void | Promise<void>;
   onCancel?: () => void;
   placeholder?: string;
   userId?: string;
@@ -101,6 +101,7 @@ export function MarkdownEditor({
     if (e.key === '/' && !showToolbar) {
       const lastChar = textBeforeCursor[textBeforeCursor.length - 1];
       if (cursorPosition === 0 || lastChar === '\n' || lastChar === ' ') {
+        e.preventDefault(); // Prevent any default behavior
         const rect = textarea.getBoundingClientRect();
         const lineHeight = 20;
         const lines = textBeforeCursor.split('\n').length;
@@ -113,14 +114,27 @@ export function MarkdownEditor({
       }
     }
 
-    // Hide toolbar on Escape
+    // Handle Escape key
     if (e.key === 'Escape') {
       if (showToolbar) {
         setShowToolbar(false);
         e.preventDefault();
         e.stopPropagation();
-      } else if (onCancel) {
-        onCancel();
+      } else {
+        // If auto-saving, save before closing
+        if (autoSave && onSave) {
+          e.preventDefault();
+          const result = onSave();
+          if (result && typeof result.then === 'function') {
+            result.then(() => {
+              if (onCancel) onCancel();
+            });
+          } else {
+            if (onCancel) onCancel();
+          }
+        } else if (onCancel) {
+          onCancel();
+        }
       }
     }
 
