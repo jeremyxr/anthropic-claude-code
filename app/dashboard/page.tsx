@@ -208,11 +208,11 @@ export default function Dashboard() {
                     <span className="text-sm text-gray-900 dark:text-white truncate">{deliverable.name}</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    {deliverable.tags && deliverable.tags.length > 0 && (
+                    {deliverable.labels && deliverable.labels.length > 0 && (
                       <div className="flex items-center space-x-1">
-                        {deliverable.tags.slice(0, 2).map((tag, i) => (
+                        {deliverable.labels.slice(0, 2).map((label, i) => (
                           <span key={i} className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
-                            {tag}
+                            {label}
                           </span>
                         ))}
                       </div>

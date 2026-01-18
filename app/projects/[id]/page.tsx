@@ -6,11 +6,13 @@ import { useParams } from 'next/navigation';
 import { api, Project, Milestone, Deliverable, TeamMember } from '@/lib/api';
 import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
 import { useUser } from '@/lib/user-context';
+import { useSettings } from '@/lib/settings-context';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const { currentUser, currentTeam } = useUser();
+  const { getStatusesByEntity, priorities: teamPriorities } = useSettings();
 
   const [project, setProject] = useState<Project | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -37,7 +39,7 @@ export default function ProjectDetailPage() {
     assignee: '',
     priority: 'medium' as const,
     dueDate: '',
-    tags: '',
+    labels: '',
   });
 
   useEffect(() => {
@@ -138,8 +140,8 @@ export default function ProjectDetailPage() {
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const tagsArray = taskFormData.tags
-        ? taskFormData.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+      const labelsArray = taskFormData.labels
+        ? taskFormData.labels.split(',').map(label => label.trim()).filter(Boolean)
         : [];
 
       await api.createDeliverable({
@@ -150,7 +152,7 @@ export default function ProjectDetailPage() {
         assignee: taskFormData.assignee || null,
         priority: taskFormData.priority,
         dueDate: taskFormData.dueDate || null,
-        tags: tagsArray,
+        labels: labelsArray,
         milestoneId: selectedMilestoneId,
         createdBy: currentUser?.id
       });
@@ -163,7 +165,7 @@ export default function ProjectDetailPage() {
         assignee: '',
         priority: 'medium',
         dueDate: '',
-        tags: '',
+        labels: '',
       });
       setSelectedMilestoneId('');
       loadData();
@@ -259,34 +261,13 @@ export default function ProjectDetailPage() {
     return member?.user?.name || member?.user?.email || userId;
   };
 
-  const projectStatusOptions = [
-    { value: 'not-started', label: 'Not Started' },
-    { value: 'in-progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'on-hold', label: 'On Hold' },
-  ];
+  // Get status options from centralized settings
+  const projectStatusOptions = getStatusesByEntity('project').map(s => ({ value: s.statusValue, label: s.label }));
+  const milestoneStatusOptions = getStatusesByEntity('milestone').map(s => ({ value: s.statusValue, label: s.label }));
+  const taskStatusOptions = getStatusesByEntity('deliverable').map(s => ({ value: s.statusValue, label: s.label }));
 
-  const milestoneStatusOptions = [
-    { value: 'not-started', label: 'Not Started' },
-    { value: 'in-progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'at-risk', label: 'At Risk' },
-  ];
-
-  const taskStatusOptions = [
-    { value: 'todo', label: 'To Do' },
-    { value: 'in-progress', label: 'In Progress' },
-    { value: 'in-review', label: 'In Review' },
-    { value: 'done', label: 'Done' },
-    { value: 'blocked', label: 'Blocked' },
-  ];
-
-  const priorityOptions = [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-    { value: 'critical', label: 'Critical' },
-  ];
+  // Get priority options from centralized settings
+  const priorityOptions = teamPriorities.map(p => ({ value: p.priorityValue, label: p.label }));
 
   if (loading || !project) {
     return (
@@ -585,13 +566,13 @@ export default function ProjectDetailPage() {
                                             </span>
                                           </div>
 
-                                          {task.tags && task.tags.length > 0 && (
+                                          {task.labels && task.labels.length > 0 && (
                                             <div>
-                                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Tags:</span>
+                                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Labels:</span>
                                               <div className="flex flex-wrap gap-1 mt-1">
-                                                {task.tags.map((tag, idx) => (
+                                                {task.labels.map((label, idx) => (
                                                   <span key={idx} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                                                    {tag}
+                                                    {label}
                                                   </span>
                                                 ))}
                                               </div>
@@ -901,9 +882,9 @@ export default function ProjectDetailPage() {
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Tags</label>
                     <input
                       type="text"
-                      value={taskFormData.tags}
-                      onChange={(e) => setTaskFormData({ ...taskFormData, tags: e.target.value })}
-                      placeholder="tag1, tag2"
+                      value={taskFormData.labels}
+                      onChange={(e) => setTaskFormData({ ...taskFormData, labels: e.target.value })}
+                      placeholder="label1, label2"
                       className="w-full px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                     />
                   </div>
