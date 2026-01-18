@@ -44,25 +44,45 @@ JIRA_API_TOKEN=your-api-token
 
 ## Step 4: Create Database Tables
 
-1. In your Supabase project, go to **SQL Editor**
-2. Click "New Query"
-3. Copy the entire contents of `supabase/migrations/001_initial_schema.sql`
-4. Paste it into the SQL editor
-5. Click "Run" to execute the migration
+You need to run all migration files in order. In your Supabase project:
 
-This will create:
-- `initiatives` table
-- `projects` table
-- `milestones` table
-- `deliverables` table
-- All necessary indexes
-- Row Level Security (RLS) policies
-- Automatic `updated_at` triggers
+### Migration 1: Initial Schema
+1. Go to **SQL Editor** → Click "New Query"
+2. Copy the entire contents of `supabase/migrations/001_initial_schema.sql`
+3. Paste and click "Run"
+
+Creates: `initiatives`, `projects`, `milestones`, `deliverables` tables
+
+### Migration 2: Users and Teams
+1. Create another new query
+2. Copy the contents of `supabase/migrations/002_users_and_teams.sql`
+3. Paste and click "Run"
+
+Creates: `users`, `teams`, `team_members` tables
+
+### Migration 3: Improvements
+1. Create another new query
+2. Copy the contents of `supabase/migrations/003_improve_projects_and_tasks.sql`
+3. Paste and click "Run"
+
+Adds: `target_delivery_date` to projects, `priority` and `due_date` to deliverables
+
+### Migration 4: Comments and Notifications
+1. Create another new query
+2. Copy the contents of `supabase/migrations/004_comments_and_notifications.sql`
+3. Paste and click "Run"
+
+Creates: `comments`, `notifications` tables with @mention support
+
+**Note**: If you skip migration 4, the task detail pages and inbox will still work but comments/notifications features will be disabled.
 
 ## Step 5: Verify the Setup
 
 1. Go to **Table Editor** in your Supabase dashboard
-2. You should see 4 tables: `initiatives`, `projects`, `milestones`, `deliverables`
+2. You should see these tables:
+   - `initiatives`, `projects`, `milestones`, `deliverables` (from migration 1)
+   - `users`, `teams`, `team_members` (from migration 2)
+   - `comments`, `notifications` (from migration 4, if you ran it)
 3. Click on each table to verify the schema
 
 ## Step 6: Test the Application
