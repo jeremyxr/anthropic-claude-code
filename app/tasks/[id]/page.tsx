@@ -52,9 +52,22 @@ export default function TaskDetailPage() {
         setTeamMembers(members);
       }
 
-      // Load comments
-      const taskComments = await api.getComments(id);
-      setComments(taskComments);
+      // Load comments (gracefully handle if table doesn't exist yet)
+      try {
+        const taskComments = await api.getComments(id);
+        setComments(taskComments);
+      } catch (commentErr: any) {
+        // If comments table doesn't exist (PGRST205), just skip loading comments
+        // This allows the task to load even if the migration hasn't been run yet
+        if (commentErr.code === 'PGRST205') {
+          console.warn('Comments table not found. Run migration 004_comments_and_notifications.sql');
+          setComments([]);
+        } else {
+          // For other errors, log but don't fail the entire page
+          console.error('Failed to load comments:', commentErr);
+          setComments([]);
+        }
+      }
     } catch (err: any) {
       console.error('Failed to load task:', err);
 
@@ -209,9 +222,13 @@ export default function TaskDetailPage() {
       const taskComments = await api.getComments(id);
       setComments(taskComments);
       setNewComment('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit comment:', err);
-      alert('Failed to submit comment. Please try again.');
+      if (err.code === 'PGRST205') {
+        alert('Comments feature is not yet set up. Please run the database migration: 004_comments_and_notifications.sql');
+      } else {
+        alert('Failed to submit comment. Please try again.');
+      }
     } finally {
       setIsSubmittingComment(false);
     }

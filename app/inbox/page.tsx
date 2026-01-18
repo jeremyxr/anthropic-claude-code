@@ -32,8 +32,14 @@ export default function InboxPage() {
       if (!selectedNotification && data.length > 0) {
         setSelectedNotification(data[0]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load notifications:', err);
+      // If notifications table doesn't exist (PGRST205), show empty state
+      // This allows the page to load even if the migration hasn't been run yet
+      if (err.code === 'PGRST205') {
+        console.warn('Notifications table not found. Run migration 004_comments_and_notifications.sql');
+      }
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
