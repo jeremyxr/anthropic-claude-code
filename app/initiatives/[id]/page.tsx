@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api, Initiative, Project, TeamMember } from '@/lib/api';
 import { InlineEdit, InlineSelect, InlineDate } from '@/components/InlineEdit';
 import { useUser } from '@/lib/user-context';
+import { FavoriteStar } from '@/components/FavoriteStar';
 
 export default function InitiativeDetailPage() {
   const params = useParams();
@@ -198,12 +199,15 @@ export default function InitiativeDetailPage() {
       <div className="border-b border-gray-200 dark:border-gray-800">
         <div className="px-8 py-3">
           {/* Breadcrumb */}
-          <Link href="/initiatives" className="inline-flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-3">
-            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Initiatives
-          </Link>
+          <div className="flex items-center space-x-2 mb-3">
+            <FavoriteStar entityType="initiative" entityId={id} />
+            <Link href="/initiatives" className="inline-flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Initiatives
+            </Link>
+          </div>
 
           {/* Initiative Title and Properties */}
           <div className="flex items-start justify-between">
