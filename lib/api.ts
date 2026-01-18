@@ -88,6 +88,34 @@ export interface TeamMember {
   user?: User;
 }
 
+export interface Comment {
+  id: string;
+  deliverableId: string;
+  userId: string;
+  content: string;
+  mentions: string[];
+  createdAt: string;
+  updatedAt: string;
+  user?: User;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'mention' | 'comment' | 'task_assigned';
+  title: string;
+  message: string | null;
+  relatedCommentId: string | null;
+  relatedDeliverableId: string | null;
+  relatedUserId: string | null;
+  isRead: boolean;
+  createdAt: string;
+  user?: User;
+  relatedUser?: User;
+  relatedDeliverable?: Deliverable;
+  relatedComment?: Comment;
+}
+
 // Helper functions to convert between snake_case (DB) and camelCase (Frontend)
 const toCamelCase = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -586,6 +614,140 @@ export const api = {
 
     if (error) throw error;
     return toCamelCase(data?.map((item: any) => item.team) || []);
+  },
+
+  // Comments
+  getComments: async (deliverableId: string): Promise<Comment[]> => {
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .eq('deliverable_id', deliverableId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  createComment: async (data: Partial<Comment>): Promise<Comment> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('comments')
+      .insert([snakeData])
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  updateComment: async (id: string, data: Partial<Comment>): Promise<Comment> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('comments')
+      .update(snakeData)
+      .eq('id', id)
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  deleteComment: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Notifications
+  getNotifications: async (userId: string): Promise<Notification[]> => {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select(`
+        *,
+        user:users(*),
+        related_user:users!notifications_related_user_id_fkey(*),
+        related_deliverable:deliverables(*),
+        related_comment:comments(*, user:users(*))
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  getUnreadNotifications: async (userId: string): Promise<Notification[]> => {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select(`
+        *,
+        user:users(*),
+        related_user:users!notifications_related_user_id_fkey(*),
+        related_deliverable:deliverables(*),
+        related_comment:comments(*, user:users(*))
+      `)
+      .eq('user_id', userId)
+      .eq('is_read', false)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return toCamelCase(data) || [];
+  },
+
+  createNotification: async (data: Partial<Notification>): Promise<Notification> => {
+    const snakeData = toSnakeCase(data);
+    const { data: result, error } = await supabase
+      .from('notifications')
+      .insert([snakeData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  markNotificationAsRead: async (id: string): Promise<Notification> => {
+    const { data: result, error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return toCamelCase(result);
+  },
+
+  markAllNotificationsAsRead: async (userId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) throw error;
+  },
+
+  deleteNotification: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   },
 
   // JIRA integration (kept for future implementation)
