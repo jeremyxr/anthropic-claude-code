@@ -93,7 +93,8 @@ export default function WorkspaceSettings() {
       setShowStatusModal(false);
     } catch (error) {
       console.error('Failed to save status:', error);
-      alert(`Failed to save status: ${error.message || error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to save status: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +156,8 @@ export default function WorkspaceSettings() {
       setShowLabelModal(false);
     } catch (error) {
       console.error('Failed to save label:', error);
-      alert(`Failed to save label: ${error.message || error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to save label: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -219,7 +221,8 @@ export default function WorkspaceSettings() {
       setShowPriorityModal(false);
     } catch (error) {
       console.error('Failed to save priority:', error);
-      alert(`Failed to save priority: ${error.message || error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to save priority: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
