@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { uploadImage } from '@/lib/imageUpload';
+import { SaveIndicator } from './SaveIndicator';
 
 interface MarkdownEditorProps {
   value: string;
@@ -47,14 +48,18 @@ export function MarkdownEditor({
   const [showToolbar, setShowToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const [isUploading, setIsUploading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [typingMetrics, setTypingMetrics] = useState({
+    lastKeystrokeTime: Date.now(),
+    keystrokeCount: 0,
+  });
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const initialValueRef = useRef<string>(value);
   const isInitialMountRef = useRef(true);
 
-  // Auto-save functionality
+  // Auto-save functionality with smart timing
   useEffect(() => {
     // Skip auto-save on initial mount
     if (isInitialMountRef.current) {
@@ -62,23 +67,35 @@ export function MarkdownEditor({
       return;
     }
 
-    if (autoSave && onSave) {
-      // Only auto-save if value has actually changed
-      if (value === initialValueRef.current) {
-        return;
-      }
-
+    if (autoSave && onSave && value !== initialValueRef.current) {
       // Clear existing timer
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
       }
 
-      // Set new timer
+      // Calculate adaptive delay based on typing patterns
+      const now = Date.now();
+      const timeSinceLastKey = now - typingMetrics.lastKeystrokeTime;
+      const isTypingBurst = timeSinceLastKey < 300 && typingMetrics.keystrokeCount >= 3;
+      const delay = isTypingBurst ? 2000 : 750; // 2s during active typing, 750ms after pause
+
+      // Set new timer with adaptive delay
       autoSaveTimerRef.current = setTimeout(async () => {
-        setIsSaving(true);
-        await onSave();
-        setIsSaving(false);
-      }, autoSaveDelay);
+        setSaveState('saving');
+        try {
+          await onSave();
+          setSaveState('saved');
+          // Reset to idle after fade-out animation completes
+          setTimeout(() => setSaveState('idle'), 1500);
+          // Reset typing metrics after successful save
+          setTypingMetrics({ lastKeystrokeTime: Date.now(), keystrokeCount: 0 });
+        } catch (error) {
+          console.error('Save failed:', error);
+          setSaveState('error');
+          // Keep error state longer for visibility
+          setTimeout(() => setSaveState('idle'), 3000);
+        }
+      }, delay);
 
       // Cleanup
       return () => {
@@ -87,7 +104,7 @@ export function MarkdownEditor({
         }
       };
     }
-  }, [value, autoSave, autoSaveDelay, onSave]);
+  }, [value, autoSave, onSave, typingMetrics]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -353,14 +370,31 @@ export function MarkdownEditor({
       <textarea
         ref={textareaRef}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const newValue = e.target.value;
+          onChange(newValue);
+
+          // Update typing metrics for smart timing
+          const now = Date.now();
+          setTypingMetrics(prev => ({
+            lastKeystrokeTime: now,
+            keystrokeCount: prev.keystrokeCount + 1,
+          }));
+        }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={rows}
         className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm resize-y"
       />
 
-      {/* Status indicators */}
+      {/* Save Status Indicator - positioned at top-right of editor */}
+      {autoSave && (
+        <div className="absolute top-2 right-2 z-10">
+          <SaveIndicator state={saveState} />
+        </div>
+      )}
+
+      {/* Bottom status bar */}
       <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <div className="flex items-center space-x-2">
           <span>Type / for formatting</span>
@@ -375,8 +409,7 @@ export function MarkdownEditor({
             </button>
           )}
         </div>
-        <div className="flex items-center space-x-2">
-          {isSaving && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
+        <div>
           {autoSave ? (
             <span>Press Esc to close</span>
           ) : (

@@ -80,11 +80,12 @@ export default function ProjectDetailPage() {
 
   const updateProjectField = async (field: string, value: any) => {
     try {
-      await api.updateProject(id, {
+      const updatedProject = await api.updateProject(id, {
         [field]: value,
         updatedBy: currentUser?.id
       });
-      await loadData();
+      // Direct state update - no refetch! This eliminates the flicker
+      setProject(updatedProject);
     } catch (err) {
       console.error(`Failed to update project ${field}:`, err);
       throw err;
@@ -93,11 +94,14 @@ export default function ProjectDetailPage() {
 
   const updateMilestoneField = async (milestoneId: string, field: string, value: any) => {
     try {
-      await api.updateMilestone(milestoneId, {
+      const updatedMilestone = await api.updateMilestone(milestoneId, {
         [field]: value,
         updatedBy: currentUser?.id
       });
-      await loadData();
+      // Update specific milestone in array - no full refetch
+      setMilestones(prevMilestones =>
+        prevMilestones.map(m => m.id === milestoneId ? updatedMilestone : m)
+      );
     } catch (err) {
       console.error(`Failed to update milestone ${field}:`, err);
       throw err;
@@ -106,11 +110,20 @@ export default function ProjectDetailPage() {
 
   const updateTaskField = async (taskId: string, field: string, value: any) => {
     try {
-      await api.updateDeliverable(taskId, {
+      const updatedTask = await api.updateDeliverable(taskId, {
         [field]: value,
         updatedBy: currentUser?.id
       });
-      await loadData();
+      // Update task in nested structure - no full refetch
+      setDeliverables(prevDeliverables => {
+        const newDeliverables = { ...prevDeliverables };
+        Object.keys(newDeliverables).forEach(milestoneId => {
+          newDeliverables[milestoneId] = newDeliverables[milestoneId].map(task =>
+            task.id === taskId ? updatedTask : task
+          );
+        });
+        return newDeliverables;
+      });
     } catch (err) {
       console.error(`Failed to update task ${field}:`, err);
       throw err;

@@ -99,15 +99,16 @@ export default function TaskDetailPage() {
     }
 
     try {
-      await api.updateDeliverable(id, {
+      const updatedTask = await api.updateDeliverable(id, {
         [field]: value,
         updatedBy: currentUser.id
       });
-      await loadData();
+      // Direct state update - no refetch! This eliminates the flicker
+      setTask(updatedTask);
     } catch (err: any) {
       console.error(`Failed to update ${field}:`, err);
 
-      // Handle concurrent edit conflicts
+      // Only refetch on conflict - handle concurrent edit conflicts
       if (err.message?.includes('conflict') || err.code === '409') {
         alert('This task was modified by someone else. Reloading latest version...');
         await loadData();

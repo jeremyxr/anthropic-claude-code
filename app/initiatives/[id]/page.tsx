@@ -64,11 +64,12 @@ export default function InitiativeDetailPage() {
 
   const updateInitiativeField = async (field: string, value: any) => {
     try {
-      await api.updateInitiative(id, {
+      const updatedInitiative = await api.updateInitiative(id, {
         [field]: value,
         updatedBy: currentUser?.id
       });
-      await loadData();
+      // Direct state update - no refetch! This eliminates the flicker
+      setInitiative(updatedInitiative);
     } catch (err) {
       console.error(`Failed to update ${field}:`, err);
       throw err;
@@ -77,11 +78,14 @@ export default function InitiativeDetailPage() {
 
   const updateProjectField = async (projectId: string, field: string, value: any) => {
     try {
-      await api.updateProject(projectId, {
+      const updatedProject = await api.updateProject(projectId, {
         [field]: value,
         updatedBy: currentUser?.id
       });
-      await loadData();
+      // Update only the specific project in the array - no full refetch
+      setProjects(prevProjects =>
+        prevProjects.map(p => p.id === projectId ? updatedProject : p)
+      );
     } catch (err) {
       console.error(`Failed to update project ${field}:`, err);
       throw err;
